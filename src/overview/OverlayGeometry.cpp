@@ -107,6 +107,12 @@ LayoutRect signalSweepRect(const LayoutRect& card, double progress) {
     };
 }
 
+double stageRailEntranceOffset(const WorkspaceWallFrame& frame, double shelfProgress) {
+    constexpr auto clearance = 14.0;
+    return -(1.0 - std::clamp(shelfProgress, 0.0, 1.0)) *
+        (frame.rail.bounds.y + frame.rail.bounds.height + clearance);
+}
+
 LayoutRect collapsedStageBounds(const WorkspaceWallFrame& frame) {
     const auto bottom     = frame.stage.bounds.y + frame.stage.bounds.height;
     const auto collapsedY = std::min(bottom, frame.rail.bounds.y + 70.0);

@@ -79,7 +79,7 @@ class OverlayRenderer {
     [[nodiscard]] bool           workspaceShelfVisible() const noexcept;
     [[nodiscard]] OverviewMode   mode() const noexcept;
     [[nodiscard]] OverviewTarget selectedTarget() const noexcept;
-    [[nodiscard]] OverviewTarget hitTest(double x, double y) const;
+    [[nodiscard]] OverviewTarget hitTest(double x, double y);
 
   private:
     void onRenderStage(eRenderStage stage);

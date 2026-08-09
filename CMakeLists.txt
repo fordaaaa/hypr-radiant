@@ -127,6 +127,8 @@ if(BUILD_TESTING)
     add_executable(hypr-radiant-hit-tests
         tests/HitTesterTest.cpp
         src/overview/HitTester.cpp
+        src/overview/OverlayGeometry.cpp
+        src/overview/StageTransform.cpp
     )
 
     target_include_directories(hypr-radiant-hit-tests

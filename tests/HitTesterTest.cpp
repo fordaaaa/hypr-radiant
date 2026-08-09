@@ -182,6 +182,29 @@ void focusedStageWindowsAreInteractive() {
     assert(target.windowId == 11);
 }
 
+void hiddenStageRailCannotStealTopEdgeHover() {
+    auto testFrame = focusedFrame();
+    testFrame.workspaces.at(1).createTarget = true;
+
+    // This x coordinate belongs to the create-workspace card in its final layout. While the shelf
+    // is hidden, however, both the rail and that card are fully above the monitor.
+    const auto hidden = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 0.0, 0.0);
+    assert(hidden.type == OverviewTargetType::None);
+
+    // Mid-reveal the final-layout position is still empty, while the visible part of the card has
+    // moved to the top edge. Input follows that translated rectangle rather than jumping ahead.
+    const auto premature = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 60.0, 0.5);
+    assert(premature.type == OverviewTargetType::None);
+    const auto arriving = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 20.0, 0.5);
+    assert(arriving.type == OverviewTargetType::NewWorkspace);
+
+    // Once the shelf reaches its layout position, the identical card is interactive where it is
+    // actually drawn. This is the transition the old static hit test skipped.
+    const auto visible = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 60.0, 1.0);
+    assert(visible.type == OverviewTargetType::NewWorkspace);
+    assert(visible.workspaceId == 2);
+}
+
 void focusedNavigationEntersStageAndReturnsToRail() {
     const auto testFrame = focusedFrame();
     const auto first = HitTester{}.moveSelection(testFrame, {.type = OverviewTargetType::Workspace, .workspaceId = 1}, NavigationDirection::Down);
@@ -323,6 +346,7 @@ int main() {
     focusedRailTreatsMiniaturesAsWorkspaceTargets();
     createCardHasDedicatedTarget();
     focusedStageWindowsAreInteractive();
+    hiddenStageRailCannotStealTopEdgeHover();
     focusedNavigationEntersStageAndReturnsToRail();
     horizontalWorkspaceNavigationWrapsAndSkipsCreateTarget();
     horizontalWorkspaceNavigationSkipsEmptyWorkspaces();

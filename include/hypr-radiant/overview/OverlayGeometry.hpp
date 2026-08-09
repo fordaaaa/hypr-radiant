@@ -42,6 +42,11 @@ namespace hypr_radiant {
 /// cannot draw outside the destination.
 [[nodiscard]] LayoutRect signalSweepRect(const LayoutRect& card, double progress);
 
+/// Vertical offset of the workspace rail while the Stage shelf reveals. At zero the rail is fully
+/// above the monitor; at one it is at its layout position. Rendering and hit-testing share this so
+/// an off-screen card can never receive pointer input.
+[[nodiscard]] double stageRailEntranceOffset(const WorkspaceWallFrame& frame, double shelfProgress);
+
 /// The shrunken stage rectangle shown while the workspace shelf is retracted.
 [[nodiscard]] LayoutRect collapsedStageBounds(const WorkspaceWallFrame& frame);
 

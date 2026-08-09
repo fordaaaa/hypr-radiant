@@ -445,14 +445,9 @@ void OverlayRenderer::selectTargetAt(double x, double y) {
     if (!frame)
         return;
 
-    if (!m_searchActive && effectiveLayoutMode() == LayoutMode::Stage) {
-        const auto mapped = mapDisplayedStagePoint(*frame, {.x = localX, .y = localY}, workspaceShelfVisible());
-        localX = mapped.x;
-        localY = mapped.y;
-    }
-    auto target = !m_searchActive ? m_hitTester.hitTest(*frame, localX, localY) : searchTargetAt(*frame, localX, localY);
-    if (!workspaceShelfVisible() && !m_searchActive && target.type == OverviewTargetType::Workspace && localY < frame->stage.bounds.y)
-        target = {};
+    auto target = m_searchActive ? searchTargetAt(*frame, localX, localY) : effectiveLayoutMode() == LayoutMode::Stage ?
+        m_hitTester.hitTestDisplayedStage(*frame, localX, localY, m_shelfTransition.value()) :
+        m_hitTester.hitTest(*frame, localX, localY);
     // The close button is part of its window as far as selection goes: crossing onto it must not
     // drop the card's highlight, or the button would blink out from under the pointer.
     if (target.type == OverviewTargetType::CloseWindow)
@@ -1099,22 +1094,18 @@ OverviewTarget OverlayRenderer::selectedTarget() const noexcept {
     return m_selectedTarget;
 }
 
-OverviewTarget OverlayRenderer::hitTest(double x, double y) const {
+OverviewTarget OverlayRenderer::hitTest(double x, double y) {
     double localX = x;
     double localY = y;
     const auto* frame = frameForPoint(x, y, localX, localY);
     if (!frame)
         return {};
 
-    if (!m_searchActive && effectiveLayoutMode() == LayoutMode::Stage) {
-        const auto mapped = mapDisplayedStagePoint(*frame, {.x = localX, .y = localY}, workspaceShelfVisible());
-        localX = mapped.x;
-        localY = mapped.y;
-    }
-    auto target = !m_searchActive ? m_hitTester.hitTest(*frame, localX, localY) : searchTargetAt(*frame, localX, localY);
-    if (!workspaceShelfVisible() && !m_searchActive && target.type == OverviewTargetType::Workspace && localY < frame->stage.bounds.y)
-        return {};
-    return target;
+    if (m_searchActive)
+        return searchTargetAt(*frame, localX, localY);
+    if (effectiveLayoutMode() == LayoutMode::Stage)
+        return m_hitTester.hitTestDisplayedStage(*frame, localX, localY, m_shelfTransition.value());
+    return m_hitTester.hitTest(*frame, localX, localY);
 }
 
 void OverlayRenderer::onRenderStage(eRenderStage stage) {
@@ -1908,7 +1899,7 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
     const auto dropProgress = std::clamp(m_dropTargetTransition.value(), 0.0, 1.0);
     const auto dropGlow = easedProgress(dropProgress);
     const auto railAlpha = contentAlpha * std::clamp(shelfProgress * 1.8, 0.0, 1.0);
-    const auto railEntranceOffset = -(1.0 - alpha) * 18.0 - (1.0 - shelfProgress) * (railBox.y + railBox.h + 14.0);
+    const auto railEntranceOffset = -(1.0 - alpha) * 18.0 + stageRailEntranceOffset(frame, shelfProgress);
     railBox.y += railEntranceOffset;
     const auto previousFrameIt = std::ranges::find_if(m_previousFrames, [&frame](const WorkspaceWallFrame& candidate) {
         return candidate.monitorId == frame.monitorId;

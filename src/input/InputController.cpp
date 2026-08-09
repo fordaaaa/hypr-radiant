@@ -269,9 +269,7 @@ void InputController::install(Callbacks callbacks) {
             return;
         }
 
-        // since search is just a text field, it would just read '/' as a char, 
-        // so it gets handled here instead of being passed to the search bar
-        if (key == KEY_SLASH && !searching) {
+        // Let '/' open search when inactive; otherwise treat it as text.
             if (m_openSearch)
                 m_openSearch();
             return;
@@ -315,8 +313,7 @@ void InputController::install(Callbacks callbacks) {
             if (m_move)
                 m_move(NavigationDirection::Down);
         } else if (!ctrlHeld()) {
-            // ctrl combinations are shortcuts, never text which fails the printable check 
-            // then reaches the layout fallback, so holding ctrl still typed the bare letter
+            // Ctrl combinations are shortcuts, not text input.
             if (const auto searchChar = searchCharForKey(key)) {
                 if (m_textInput)
                     m_textInput(*searchChar);

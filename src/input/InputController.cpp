@@ -272,28 +272,28 @@ void InputController::install(Callbacks callbacks) {
         // Let '/' open search when inactive; otherwise treat it as text.
             if (m_openSearch)
                 m_openSearch();
-            return;
+        return;
         }
 
         if (key == KEY_COMMA && ctrlHeld()) {
             if (m_togglePreferences)
                 m_togglePreferences();
-            return;
+        return;
         }
 
         if (key == KEY_TAB) {
-            if (!searching) {
+        if (!searching) {
                 if (m_toggleMode)
                     m_toggleMode();
-            }
-            return;
+        }
+        return;
         }
 
         // hardcode the workspace kbs, with the fix for the 0 key, and text going into keymapss
         if (key >= KEY_1 && key <= KEY_9 && !searching) {
             if (m_jump)
                 m_jump(static_cast<std::int64_t>(1 + (key - KEY_1)));
-            return;
+        return;
         }
 
         // no workspace 0, but it is a valid key, so ignore it if not searching
@@ -313,13 +313,13 @@ void InputController::install(Callbacks callbacks) {
             if (m_move)
                 m_move(NavigationDirection::Down);
         } else if (!ctrlHeld()) {
-            // Ctrl combinations are shortcuts, not text input.
+        // Ctrl combinations are shortcuts, not text input.
             if (const auto searchChar = searchCharForKey(key)) {
                 if (m_textInput)
                     m_textInput(*searchChar);
-            }
         }
-    });
+        }
+});
 
     m_seatGrab = makeShared<CSeatGrab>();
     m_seatGrab->m_keyboard = true;

@@ -219,4 +219,11 @@ std::string_view label(MotionPreference preference) {
     return "DEFAULT";
 }
 
+AccentPreference stepAccentPreference(AccentPreference preference, int step) {
+    constexpr auto optionCount = 4;
+    const auto     current     = static_cast<int>(preference);
+    const auto     normalized  = ((current + step) % optionCount + optionCount) % optionCount;
+    return static_cast<AccentPreference>(normalized);
+}
+
 } // namespace hypr_radiant

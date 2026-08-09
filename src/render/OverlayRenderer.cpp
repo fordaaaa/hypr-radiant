@@ -344,7 +344,7 @@ void OverlayRenderer::moveSelection(NavigationDirection direction) {
         else if (direction == NavigationDirection::Down)
             index = (index + 1) % controls.size();
         else if (m_selectedPreference != PreferenceControl::AppExpose)
-            (void)applyPreference(m_selectedPreference);
+            (void)applyPreference(m_selectedPreference, -1, direction == NavigationDirection::Left ? -1 : 1);
         m_selectedPreference = controls[index];
         damageMonitorById(m_preferencesMonitorId);
         return;
@@ -2334,7 +2334,7 @@ PreferenceHit OverlayRenderer::preferenceControlAt(double x, double y) const {
     return hitTestPreferencesPanel(computePreferencesPanel(frame->bounds), localX, localY);
 }
 
-PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int value) {
+PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int value, int step) {
     if (control == PreferenceControl::None)
         return {};
     if (control == PreferenceControl::Close) {
@@ -2370,12 +2370,7 @@ PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int va
         if (value >= 0 && value <= 3)
                 state.accent = static_cast<AccentPreference>(value);
         else
-                switch (state.accent) {
-                    case AccentPreference::FollowConfig: state.accent = AccentPreference::Green; break;
-                    case AccentPreference::Green: state.accent = AccentPreference::Blue; break;
-                    case AccentPreference::Blue: state.accent = AccentPreference::Violet; break;
-                    case AccentPreference::Violet: state.accent = AccentPreference::FollowConfig; break;
-            }
+                state.accent = stepAccentPreference(state.accent, step);
         break;
     case PreferenceControl::None:
     case PreferenceControl::AppExpose:

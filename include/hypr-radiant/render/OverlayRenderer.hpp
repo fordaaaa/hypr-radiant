@@ -131,7 +131,7 @@ class OverlayRenderer {
     [[nodiscard]] int        effectiveAnimationDurationMs() const;
     [[nodiscard]] OverviewMode defaultOverviewMode() const;
     [[nodiscard]] PreferenceHit preferenceControlAt(double x, double y) const;
-    [[nodiscard]] PointerAction applyPreference(PreferenceControl control, int value = -1);
+    [[nodiscard]] PointerAction applyPreference(PreferenceControl control, int value = -1, int step = 1);
     void rebuildAfterPreferenceChange();
     /// Surface derived from the active theme background, stepped `lift` toward its contrasting
     /// end. Lightens on dark themes and darkens on light ones.

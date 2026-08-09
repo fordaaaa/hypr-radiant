@@ -64,5 +64,8 @@ class PreferencesStore {
 [[nodiscard]] std::string_view label(WindowViewPreference preference);
 [[nodiscard]] std::string_view label(AccentPreference preference);
 [[nodiscard]] std::string_view label(MotionPreference preference);
+/// Returns the adjacent accent in the four-option preferences row. Positive steps move toward
+/// VIOLET and negative steps move toward THEME, wrapping at either end.
+[[nodiscard]] AccentPreference stepAccentPreference(AccentPreference preference, int step);
 
 } // namespace hypr_radiant

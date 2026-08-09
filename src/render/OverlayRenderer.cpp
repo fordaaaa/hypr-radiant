@@ -109,6 +109,66 @@ CHyprColor withAlpha(CHyprColor color, double multiplier) {
     return color;
 }
 
+void drawSignalLock(const LayoutRect& rect, double progress, CHyprColor color, double alpha, const CRegion& damage) {
+    constexpr auto PI = 3.14159265358979323846;
+    const auto     clamped  = std::clamp(progress, 0.0, 1.0);
+    const auto     strength = std::sin(PI * clamped);
+    const auto     settled  = easedProgress(clamped);
+    if (alpha <= 0.001)
+        return;
+
+    if (strength > 0.001) {
+        const auto line       = boxFor(signalSweepRect(rect, clamped));
+        const auto brightSpan = std::clamp(line.w * 0.28, 18.0, 88.0);
+        // One quiet acquisition sweep, bright only at its centre. The faint full-width carrier
+        // keeps it legible over both live previews and empty workspace glass.
+        drawRect(line, withAlpha(color, alpha * 0.28 * strength), damage, 1);
+        drawRect(CBox{line.x + centered(line.w, brightSpan), line.y, brightSpan, line.h},
+            withAlpha(color, alpha * 0.86 * strength), damage, 1);
+
+        // A single packet traces the card perimeter clockwise. It is intentionally short: a full
+        // animated border would overpower the theme instead of reading like terminal telemetry.
+        const auto traceBox    = boxFor(scaledAroundCenter(rect, std::lerp(1.035, 1.0, settled)));
+        const auto side        = std::min(3, static_cast<int>(clamped * 4.0));
+        const auto sidePhase   = clamped >= 1.0 ? 1.0 : clamped * 4.0 - static_cast<double>(side);
+        const auto horizontal  = std::clamp(traceBox.w * 0.16, 12.0, 58.0);
+        const auto vertical    = std::clamp(traceBox.h * 0.16, 10.0, 42.0);
+        CBox packet;
+        if (side == 0)
+            packet = {traceBox.x + (traceBox.w - horizontal) * sidePhase, traceBox.y, horizontal, 2.0};
+        else if (side == 1)
+            packet = {traceBox.x + traceBox.w - 2.0, traceBox.y + (traceBox.h - vertical) * sidePhase, 2.0, vertical};
+        else if (side == 2)
+            packet = {traceBox.x + (traceBox.w - horizontal) * (1.0 - sidePhase), traceBox.y + traceBox.h - 2.0, horizontal, 2.0};
+        else
+            packet = {traceBox.x, traceBox.y + (traceBox.h - vertical) * (1.0 - sidePhase), 2.0, vertical};
+        drawRect(packet, withAlpha(color, alpha * 0.92 * strength), damage, 1);
+        drawBorder(traceBox, withAlpha(color, alpha * 0.10 * strength), 4, 1);
+    }
+
+    // The moving trace resolves into compact corner locks rather than a persistent glowing frame.
+    // They converge from outside the card, giving both selection and a drag destination a stable
+    // end state while preserving the existing Omarchy glass treatment.
+    const auto locked       = scaledAroundCenter(rect, std::lerp(1.045, 1.0, settled));
+    const auto lockBox      = boxFor(locked);
+    const auto cornerLength = std::clamp(std::min(lockBox.w, lockBox.h) * 0.13, 8.0, 22.0);
+    const auto cornerAlpha  = alpha * 0.52 * settled;
+    constexpr auto weight  = 2.0;
+    constexpr auto inset   = 5.0;
+    const auto left         = lockBox.x + inset;
+    const auto right        = lockBox.x + lockBox.w - inset;
+    const auto top          = lockBox.y + inset;
+    const auto bottom       = lockBox.y + lockBox.h - inset;
+    drawRect({left, top, cornerLength, weight}, withAlpha(color, cornerAlpha), damage, 1);
+    drawRect({left, top, weight, cornerLength}, withAlpha(color, cornerAlpha), damage, 1);
+    drawRect({right - cornerLength, top, cornerLength, weight}, withAlpha(color, cornerAlpha), damage, 1);
+    drawRect({right - weight, top, weight, cornerLength}, withAlpha(color, cornerAlpha), damage, 1);
+    drawRect({left, bottom - weight, cornerLength, weight}, withAlpha(color, cornerAlpha), damage, 1);
+    drawRect({left, bottom - cornerLength, weight, cornerLength}, withAlpha(color, cornerAlpha), damage, 1);
+    drawRect({right - cornerLength, bottom - weight, cornerLength, weight}, withAlpha(color, cornerAlpha), damage, 1);
+    drawRect({right - weight, bottom - cornerLength, weight, cornerLength}, withAlpha(color, cornerAlpha), damage, 1);
+}
+
 CHyprColor tintedSurface(CHyprColor surface, CHyprColor tint, double amount) {
     const auto mix = static_cast<float>(std::clamp(amount, 0.0, 1.0));
     surface.r = std::lerp(surface.r, tint.r, mix);
@@ -779,7 +839,15 @@ void OverlayRenderer::togglePreferences() {
 PointerAction OverlayRenderer::activatePreference() {
     if (!m_preferencesVisible)
         return {};
-    return applyPreference(m_selectedPreference);
+    if (m_selectedPreference == PreferenceControl::AppExpose)
+        return applyPreference(m_selectedPreference);
+
+    // Arrows and pointer options save as they change. Enter confirms the value already on screen
+    // and leaves settings; advancing again here made keyboard confirmation silently alter it.
+    if (!m_preferences.save())
+        log::warn("could not save preferences to {}", m_preferences.path().string());
+    togglePreferences();
+    return {};
 }
 
 void OverlayRenderer::setWorkspaceShelfVisible(bool visible) {
@@ -932,7 +1000,7 @@ void OverlayRenderer::beginDrag() {
     m_dragSettleTransition.hideImmediate();
     m_dragSettle = {};
     m_dragLiftTransition.hideImmediate();
-    m_dragLiftTransition.animateTo(true, dragDurationMs(0.46));
+    m_dragLiftTransition.animateTo(true, dragDurationMs(0.62));
 }
 
 OverviewTarget OverlayRenderer::dropTargetFor(OverviewTarget hit) const {
@@ -971,7 +1039,7 @@ void OverlayRenderer::updateDropTarget(OverviewTarget target) {
     // Restarted rather than continued, so crossing from one workspace to the next re-plays the
     // highlight on the card the pointer just entered instead of leaving it mid-fade.
     m_dropTargetTransition.hideImmediate();
-    m_dropTargetTransition.animateTo(true, dragDurationMs(0.42));
+    m_dropTargetTransition.animateTo(true, dragDurationMs(0.78));
 }
 
 void OverlayRenderer::beginDragSettle(double x, double y) {
@@ -999,12 +1067,12 @@ void OverlayRenderer::beginDragSettle(double x, double y) {
 
     m_dragSettle = {.monitorId = frame->monitorId, .windowId = source->stableId, .from = from, .to = to};
     m_dragSettleTransition.setProgress(1.0, true);
-    m_dragSettleTransition.animateTo(false, dragDurationMs(landed ? 0.58 : 0.44));
+    m_dragSettleTransition.animateTo(false, dragDurationMs(landed ? 0.78 : 0.56));
 }
 
 void OverlayRenderer::animateSelection() {
     m_selectionTransition.hideImmediate();
-    m_selectionTransition.animateTo(true, std::max(0, static_cast<int>(std::round(effectiveAnimationDurationMs() * 0.62))));
+    m_selectionTransition.animateTo(true, std::max(0, static_cast<int>(std::round(effectiveAnimationDurationMs() * 0.92))));
 }
 
 bool OverlayRenderer::active() const noexcept {
@@ -1268,7 +1336,8 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
     const auto foreground   = m_config.foregroundColor();
     const auto accentLit    = tintedSurface(accent, foreground, 0.24);
     const auto entrance     = std::clamp(m_stageTransition.value(), 0.0, 1.0);
-    const auto selection    = easedProgress(m_selectionTransition.value());
+    const auto selectionProgress = std::clamp(m_selectionTransition.value(), 0.0, 1.0);
+    const auto selection    = easedProgress(selectionProgress);
     // Typography follows the actual interactive progress, not the animation's eventual target.
     // Gesture-driven closes keep targetVisible() true until release, so a target-based curve left
     // labels fully present and then dropped their textures at the end. This delayed smoothstep
@@ -1278,7 +1347,8 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
     // Drag affordances resolve once per frame and are read by both loops below: the card being
     // carried, the slot it left behind and the workspace it would land on all move together.
     const auto dragLift = m_dragging ? easedProgress(m_dragLiftTransition.value()) : 0.0;
-    const auto dropGlow = easedProgress(m_dropTargetTransition.value());
+    const auto dropProgress = std::clamp(m_dropTargetTransition.value(), 0.0, 1.0);
+    const auto dropGlow = easedProgress(dropProgress);
     const auto pressDip = m_pointerDown && !m_dragging && m_pointerDownTarget.type == OverviewTargetType::Window
         ? easedProgress(m_pressTransition.value())
                           : 0.0;
@@ -1316,10 +1386,9 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         const auto hoverLift    = ownsSelection ? selection : 0.0;
         // The workspace the carried card would land on rises to meet it, so the destination is
         // legible from the card's own position rather than only under the pointer.
-        const auto drop         = m_dragging && m_dragTarget.type != OverviewTargetType::None &&
-                m_dragTarget.monitorId == frame.monitorId && m_dragTarget.workspaceId == workspace.workspaceId
-                          ? dropGlow
-                          : 0.0;
+        const auto dropTarget   = m_dragging && m_dragTarget.type != OverviewTargetType::None &&
+            m_dragTarget.monitorId == frame.monitorId && m_dragTarget.workspaceId == workspace.workspaceId;
+        const auto drop         = dropTarget ? dropGlow : 0.0;
         auto       displayRect  = scaledAroundCenter(workspace.rect,
             std::lerp(0.94, 1.0, cardEntrance) * std::lerp(1.0, workspaceSelected ? 1.018 : 1.006, hoverLift) * std::lerp(1.0, 1.03, drop),
             -std::lerp(0.0, workspaceSelected ? 7.0 : 3.0, hoverLift) - 6.0 * drop);
@@ -1361,25 +1430,6 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             drawRect(CBox{workspaceBox.x + 16.0, workspaceBox.y, railWidth, 1.0},
                 withAlpha(accent, cardAlpha * 0.58), damage, 1);
         }
-        if (workspaceSelected) {
-            const auto cornerAlpha = cardAlpha * std::lerp(0.24, 0.76, selection);
-            constexpr auto cornerLength = 20.0;
-            constexpr auto cornerInset  = 7.0;
-            constexpr auto cornerWeight = 2.0;
-            const auto left   = workspaceBox.x + cornerInset;
-            const auto right  = workspaceBox.x + workspaceBox.w - cornerInset;
-            const auto top    = workspaceBox.y + cornerInset;
-            const auto bottom = workspaceBox.y + workspaceBox.h - cornerInset;
-            drawRect(CBox{left, top, cornerLength, cornerWeight}, withAlpha(accentLit, cornerAlpha), damage, 1);
-            drawRect(CBox{left, top, cornerWeight, cornerLength}, withAlpha(accentLit, cornerAlpha), damage, 1);
-            drawRect(CBox{right - cornerLength, top, cornerLength, cornerWeight}, withAlpha(accentLit, cornerAlpha), damage, 1);
-            drawRect(CBox{right - cornerWeight, top, cornerWeight, cornerLength}, withAlpha(accentLit, cornerAlpha), damage, 1);
-            drawRect(CBox{left, bottom - cornerWeight, cornerLength, cornerWeight}, withAlpha(accentLit, cornerAlpha), damage, 1);
-            drawRect(CBox{left, bottom - cornerLength, cornerWeight, cornerLength}, withAlpha(accentLit, cornerAlpha), damage, 1);
-            drawRect(CBox{right - cornerLength, bottom - cornerWeight, cornerLength, cornerWeight}, withAlpha(accentLit, cornerAlpha), damage, 1);
-            drawRect(CBox{right - cornerWeight, bottom - cornerLength, cornerWeight, cornerLength}, withAlpha(accentLit, cornerAlpha), damage, 1);
-        }
-
         if (drop > 0.001) {
             // Destination cue: a halo, a full accent ring and an inset rail, all keyed to the same
             // progress so the card the pointer entered lights up rather than switching on.
@@ -1466,8 +1516,12 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
                     windowRound, 1);
                 drawRect(CBox{windowBox.x + 12.0, windowBox.y, std::min(72.0, windowBox.w * 0.34), 1.0},
                     withAlpha(accentLit, windowAlpha * 0.78 * selection), damage, 1);
+                drawSignalLock(windowRect, selectionProgress, accentLit, windowAlpha, damage);
             }
         }
+
+        if (workspaceSelected || dropTarget)
+            drawSignalLock(displayRect, dropTarget ? dropProgress : selectionProgress, accentLit, cardAlpha, damage);
 
         // Drawn after the windows so the caption sits over the cards already in the workspace rather
         // than behind them. It rises into place from under the card edge, and is dropped entirely on
@@ -1693,7 +1747,7 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
     drawBorder(runBox, withAlpha(accent, panelAlpha * 0.48), 0, 1);
     m_labels.renderCentered("[run ↵]", runBox, Theme::badgeSize(), accent, panelAlpha, damage);
 
-    m_labels.renderColored("↑↓ navigate   ←→ change   enter apply   ctrl+, close",
+    m_labels.renderColored("↑↓ navigate   ←→ change   enter save/close   ctrl+, close",
         geometry.panel.x + 28.0, geometry.panel.y + geometry.panel.height - 25.0,
         geometry.panel.width - 210.0, Theme::badgeSize(), foreground, panelAlpha * 0.30, damage);
 }
@@ -1761,6 +1815,7 @@ void OverlayRenderer::renderStageWindows(const WorkspaceWallFrame& frame, const 
         if (selected) {
             drawBorder(CBox{windowBox.x - 1.0, windowBox.y - 1.0, windowBox.w + 2.0, windowBox.h + 2.0}, withAlpha(ctx.accent, cardAlpha * 0.82),
                 radius + 1, 1);
+            drawSignalLock(displayRect, ctx.selectionTransition, ctx.accent, windowAlpha, damage);
         }
 
         // Drawn after the preview so it sits over the thumbnail rather than under it.
@@ -1850,6 +1905,8 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
     const auto shelfProgress = std::clamp(m_shelfTransition.value(), 0.0, 1.0);
     const auto displayedStageBounds = interpolatedRect(collapsedStageBounds(frame), frame.stage.bounds, shelfProgress);
     const auto selectionTransition = std::clamp(m_selectionTransition.value(), 0.0, 1.0);
+    const auto dropProgress = std::clamp(m_dropTargetTransition.value(), 0.0, 1.0);
+    const auto dropGlow = easedProgress(dropProgress);
     const auto railAlpha = contentAlpha * std::clamp(shelfProgress * 1.8, 0.0, 1.0);
     const auto railEntranceOffset = -(1.0 - alpha) * 18.0 - (1.0 - shelfProgress) * (railBox.y + railBox.h + 14.0);
     railBox.y += railEntranceOffset;
@@ -1882,17 +1939,24 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
             continue;
 
         const auto selected = workspace.workspaceId == m_selectedTarget.workspaceId && frame.monitorId == m_selectedFrameMonitorId;
+        const auto workspaceSelected = selected &&
+            (m_selectedTarget.type == OverviewTargetType::Workspace || m_selectedTarget.type == OverviewTargetType::NewWorkspace);
+        const auto dropTarget = m_dragging && m_dragTarget.type != OverviewTargetType::None &&
+            m_dragTarget.monitorId == frame.monitorId && m_dragTarget.workspaceId == workspace.workspaceId;
+        const auto drop = dropTarget ? dropGlow : 0.0;
         // Selection lifts the card, brightens it, and wraps it in an accent ring with a soft glow.
         if (selected)
             displayRect = scaledAroundCenter(displayRect, std::lerp(0.995, 1.032, selectionTransition), -5.0 * selectionTransition);
+        if (dropTarget)
+            displayRect = scaledAroundCenter(displayRect, std::lerp(1.0, 1.04, drop), -5.0 * drop);
         const auto cardBox  = boxFor(displayRect);
         const auto radius   = Theme::workspaceRadius(true);
 
         if (selected && !workspace.createTarget) {
             drawRect(CBox{cardBox.x - 16.0, cardBox.y - 16.0, cardBox.w + 32.0, cardBox.h + 32.0},
-                withAlpha(accent, railAlpha * 0.07 * selectionTransition), damage, radius + 16);
+                withAlpha(accent, railAlpha * (0.07 * selectionTransition + 0.10 * drop)), damage, radius + 16);
             drawRect(CBox{cardBox.x - 8.0, cardBox.y - 8.0, cardBox.w + 16.0, cardBox.h + 16.0},
-                withAlpha(accent, railAlpha * 0.15 * selectionTransition), damage, radius + 8);
+                withAlpha(accent, railAlpha * (0.15 * selectionTransition + 0.18 * drop)), damage, radius + 8);
         }
 
         const auto lift = selected ? selectionTransition : 0.0;
@@ -1907,6 +1971,8 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
             auto cardFill = surfaceColor(cardLift, railAlpha * cardOpacity);
             if (selected)
                 cardFill = tintedSurface(cardFill, accent, 0.12);
+            if (dropTarget)
+                cardFill = tintedSurface(cardFill, accent, 0.24 * drop);
             drawRect(cardBox, cardFill, damage, radius);
         }
 
@@ -1934,9 +2000,14 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
             renderWindowPreview(window, previewBox, railAlpha, damage);
         }
 
+        if (workspaceSelected || dropTarget)
+            drawSignalLock(displayRect, dropTarget ? dropProgress : selectionTransition, accent, railAlpha, damage);
+
         if (!workspace.createTarget) {
-            const auto borderStrength = selected ? 0.95 : workspace.active ? 0.30 : 0.10;
-            drawBorder(cardBox, withAlpha(accent, railAlpha * borderStrength), radius, selected ? 2 : 1);
+            const auto borderStrength = dropTarget ? std::lerp(0.50, 1.0, drop) : selected ? 0.95 : workspace.active ? 0.30 : 0.10;
+            drawBorder(cardBox, withAlpha(accent, railAlpha * borderStrength), radius, selected || dropTarget ? 2 : 1);
+            if (dropTarget)
+                drawBorder(insetBox(cardBox, 6.0), withAlpha(accent, railAlpha * 0.32 * drop), std::max(1, radius - 4), 1);
         }
 
         if (workspace.active && !selected && !workspace.createTarget) {
@@ -2079,6 +2150,7 @@ void OverlayRenderer::renderDragCard(const WindowCard& window, const LayoutRect&
     drawRect(box, surfaceColor(0.14F, alpha * 0.96), damage, radius);
     renderWindowPreview(window, box, alpha * 0.96, damage);
     drawBorder(box, withAlpha(accent, alpha * std::lerp(0.20, 0.74, lift)), radius, 1);
+    drawSignalLock(rect, lift, accent, alpha, damage);
 
     // Named while it is in the air: a thumbnail alone is hard to identify at drag size, and the
     // chip is what makes the card feel picked up rather than smeared across the wall.

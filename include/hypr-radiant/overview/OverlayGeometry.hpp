@@ -37,6 +37,16 @@ namespace hypr_radiant {
 /// scaled to fit, so the release reads as the window landing somewhere rather than blinking out.
 [[nodiscard]] LayoutRect dragLandingRect(const LayoutRect& card, const LayoutRect& workspace);
 
+/// Horizontal scan line used by the selection and drop-target signal animation. It travels inside
+/// the card rather than touching its rounded edge, and clamps progress so interrupted timelines
+/// cannot draw outside the destination.
+[[nodiscard]] LayoutRect signalSweepRect(const LayoutRect& card, double progress);
+
+/// Vertical offset of the workspace rail while the Stage shelf reveals. At zero the rail is fully
+/// above the monitor; at one it is at its layout position. Rendering and hit-testing share this so
+/// an off-screen card can never receive pointer input.
+[[nodiscard]] double stageRailEntranceOffset(const WorkspaceWallFrame& frame, double shelfProgress);
+
 /// The shrunken stage rectangle shown while the workspace shelf is retracted.
 [[nodiscard]] LayoutRect collapsedStageBounds(const WorkspaceWallFrame& frame);
 

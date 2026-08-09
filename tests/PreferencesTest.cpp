@@ -49,6 +49,14 @@ void serializationRoundTrips() {
     assert(parsePreferences(serializePreferences(expected)) == expected);
 }
 
+void accentNavigationFollowsArrowDirectionAndWraps() {
+    assert(stepAccentPreference(AccentPreference::FollowConfig, 1) == AccentPreference::Green);
+    assert(stepAccentPreference(AccentPreference::Green, 1) == AccentPreference::Blue);
+    assert(stepAccentPreference(AccentPreference::Blue, -1) == AccentPreference::Green);
+    assert(stepAccentPreference(AccentPreference::FollowConfig, -1) == AccentPreference::Violet);
+    assert(stepAccentPreference(AccentPreference::Violet, 1) == AccentPreference::FollowConfig);
+}
+
 } // namespace
 
 int main() {
@@ -56,6 +64,7 @@ int main() {
     parsesEveryPreference();
     ignoresUnknownKeysAndFallsBackOnUnknownValues();
     serializationRoundTrips();
+    accentNavigationFollowsArrowDirectionAndWraps();
     std::cout << "PreferencesTest passed\n";
     return 0;
 }

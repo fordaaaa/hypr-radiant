@@ -1,5 +1,8 @@
 #include <hypr-radiant/overview/HitTester.hpp>
 
+#include <hypr-radiant/overview/OverlayGeometry.hpp>
+#include <hypr-radiant/overview/StageTransform.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -9,10 +12,6 @@ namespace {
 
 bool selectable(const LayoutRect& rect) {
     return rect.width > 0.0 && rect.height > 0.0;
-}
-
-bool contains(const LayoutRect& rect, double x, double y) {
-    return selectable(rect) && x >= rect.x && y >= rect.y && x < rect.x + rect.width && y < rect.y + rect.height;
 }
 
 LayoutRect rectFor(const WorkspaceWallFrame& frame, OverviewTarget target) {
@@ -129,6 +128,35 @@ OverviewTarget HitTester::hitTest(const WorkspaceWallFrame& frame, double x, dou
     }
 
     return {};
+}
+
+OverviewTarget HitTester::hitTestDisplayedStage(
+    const WorkspaceWallFrame& frame, double x, double y, double shelfProgress) const {
+    if (!frame.focusedStage)
+        return hitTest(frame, x, y);
+
+    const auto progress   = std::clamp(shelfProgress, 0.0, 1.0);
+    const auto railOffset = stageRailEntranceOffset(frame, progress);
+    auto       railBounds = frame.rail.bounds;
+    railBounds.y += railOffset;
+    if (contains(railBounds, x, y))
+        return hitTest(frame, x, y - railOffset);
+
+    const auto displayedStage = interpolatedRect(collapsedStageBounds(frame), frame.stage.bounds, progress);
+    if (!contains(displayedStage, x, y))
+        return {};
+
+    if (const auto mapped = mapStagePointToSource(frame.stage.bounds, displayedStage, {.x = x, .y = y}))
+        return hitTest(frame, mapped->x, mapped->y);
+
+    // Aspect-preserving stage mapping can leave narrow letterbox margins. They are still visible
+    // workspace background, so hovering them selects the current workspace rather than a hidden
+    // rail card whose static layout happens to sit under the same coordinate.
+    return {
+        .type        = OverviewTargetType::Workspace,
+        .workspaceId = frame.stage.workspaceId,
+        .monitorId   = frame.monitorId,
+    };
 }
 
 OverviewTarget HitTester::initialSelection(const WorkspaceWallFrame& frame) const {

@@ -134,12 +134,12 @@ App Exposé collects every window belonging to the focused application:
 
 With the mouse:
 
-- Hover a workspace or window to move the selection
+- Hover a workspace or window to move the selection; a short accent trace resolves into corner
+  locks on the chosen card
 - Click a workspace to switch to it, click a window to focus it
-- Drag a window onto a workspace card to move it there: the card lifts out of the
-  wall and follows the pointer, the workspace under it lights up as the
-  destination, and the drop settles the card into place. Releasing over the
-  window's own workspace, or over nothing, sends it back where it came from
+- Drag a window onto a workspace card in Stage or Wall to move it there: the card lifts and follows
+  the pointer, the workspace under it runs the destination lock, and the drop settles the card into
+  place. Releasing over the window's own workspace, or over nothing, sends it back where it came from
 - Drag a window onto the trailing `+`, or just click it, to create a workspace
 - Pointer at the top edge reveals the shelf, at the bottom edge the dock
 - Scrolling shows and hides the shelf, `Ctrl` + wheel steps through workspaces
@@ -154,6 +154,7 @@ With the keyboard:
 - `/` opens search with every window listed
 - `Tab` switches between the spatial and application-grouped views
 - `Ctrl+,` opens or closes preferences
+- In preferences, `Left` / `Right` change and save a value; `Enter` confirms it and closes the panel
 - `Enter` activates the selection
 - `Esc` closes search first, the overview second
 

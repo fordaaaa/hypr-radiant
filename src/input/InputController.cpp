@@ -115,8 +115,19 @@ std::optional<char> searchCharForKey(uint32_t key) {
         return 'z';
     case KEY_SPACE:
         return ' ';
-        default: return std::nullopt;
+    case KEY_SLASH:
+        return '/';
+    default:
+        break;
     }
+
+    // number row is continous so it can be calculated instead of hardcoded
+    if (key >= KEY_1 && key <= KEY_9)
+        return static_cast<char>('1' + (key - KEY_1));
+    if (key == KEY_0)
+        return '0';
+
+    return std::nullopt;
 }
 
 } // namespace
@@ -233,7 +244,9 @@ void InputController::install(Callbacks callbacks) {
         if (!isPressed)
             return;
 
-        const auto key = event.keycode;
+        const auto key       = event.keycode;
+        const auto searching = m_searchActive && m_searchActive();
+
         if (key == KEY_ESC) {
             if (m_close)
                 m_close();
@@ -251,12 +264,14 @@ void InputController::install(Callbacks callbacks) {
         if (key == KEY_BACKSPACE) {
             if (m_backspace)
                 m_backspace();
-            if (m_searchActive && m_searchActive())
+            if (searching)
                 startBackspaceRepeat();
             return;
         }
 
-        if (key == KEY_SLASH) {
+        // since search is just a text field, it would just read '/' as a char, 
+        // so it gets handled here instead of being passed to the search bar
+        if (key == KEY_SLASH && !searching) {
             if (m_openSearch)
                 m_openSearch();
             return;
@@ -269,29 +284,23 @@ void InputController::install(Callbacks callbacks) {
         }
 
         if (key == KEY_TAB) {
-            if (!m_searchActive || !m_searchActive()) {
+            if (!searching) {
                 if (m_toggleMode)
                     m_toggleMode();
             }
             return;
         }
 
-        if (key >= KEY_1 && key <= KEY_9) {
-            const auto value = static_cast<char>('1' + (key - KEY_1));
-            if (m_searchActive && m_searchActive()) {
-                if (m_textInput)
-                    m_textInput(value);
-            } else if (m_jump) {
-                m_jump(static_cast<std::int64_t>(value - '0'));
-            }
+        // hardcode the workspace kbs, with the fix for the 0 key, and text going into keymapss
+        if (key >= KEY_1 && key <= KEY_9 && !searching) {
+            if (m_jump)
+                m_jump(static_cast<std::int64_t>(1 + (key - KEY_1)));
             return;
         }
 
-        if (key == KEY_0) {
-            if (m_searchActive && m_searchActive() && m_textInput)
-                m_textInput('0');
+        // no workspace 0, but it is a valid key, so ignore it if not searching
+        if (key == KEY_0 && !searching)
             return;
-        }
 
         if (key == KEY_LEFT) {
             if (m_move)
@@ -305,9 +314,13 @@ void InputController::install(Callbacks callbacks) {
         } else if (key == KEY_DOWN) {
             if (m_move)
                 m_move(NavigationDirection::Down);
-        } else if (const auto searchChar = searchCharForKey(key)) {
-            if (m_textInput)
-                m_textInput(*searchChar);
+        } else if (!ctrlHeld()) {
+            // ctrl combinations are shortcuts, never text which fails the printable check 
+            // then reaches the layout fallback, so holding ctrl still typed the bare letter
+            if (const auto searchChar = searchCharForKey(key)) {
+                if (m_textInput)
+                    m_textInput(*searchChar);
+            }
         }
     });
 

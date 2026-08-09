@@ -151,7 +151,8 @@ With the keyboard:
 - `Down` drops into the windows of the selected workspace, `Up` goes back
 - `1`–`9` jump straight to a workspace
 - Start typing to search windows by title or class
-- `/` opens search with every window listed
+- `/` opens search with every window listed, and types a slash once search is open,
+  so window titles that contain a path stay searchable
 - `Tab` switches between the spatial and application-grouped views
 - `Ctrl+,` opens or closes preferences
 - `Enter` activates the selection

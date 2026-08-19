@@ -59,6 +59,7 @@ if(HYPR_RADIANT_BUILD_PLUGIN)
         src/config/OmarchyPalette.cpp
         src/config/Preferences.cpp
         src/input/GestureController.cpp
+        src/input/KeyboardAction.cpp
         src/input/SwipeTracker.cpp
         src/overview/HitTester.cpp
         src/input/InputController.cpp
@@ -225,6 +226,17 @@ if(BUILD_TESTING)
     hypr_radiant_enable_warnings(hypr-radiant-input-guard-tests)
     hypr_radiant_enable_sanitizers(hypr-radiant-input-guard-tests)
     add_test(NAME hypr-radiant-input-guard-tests COMMAND hypr-radiant-input-guard-tests)
+
+    add_executable(hypr-radiant-keyboard-action-tests
+        tests/KeyboardActionTest.cpp
+        src/input/KeyboardAction.cpp
+    )
+    target_include_directories(hypr-radiant-keyboard-action-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_compile_features(hypr-radiant-keyboard-action-tests PRIVATE cxx_std_23)
+    target_compile_options(hypr-radiant-keyboard-action-tests PRIVATE -UNDEBUG)
+    hypr_radiant_enable_warnings(hypr-radiant-keyboard-action-tests)
+    hypr_radiant_enable_sanitizers(hypr-radiant-keyboard-action-tests)
+    add_test(NAME hypr-radiant-keyboard-action-tests COMMAND hypr-radiant-keyboard-action-tests)
 
     add_executable(hypr-radiant-omarchy-palette-tests
         tests/OmarchyPaletteTest.cpp

@@ -40,6 +40,16 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate HyprPM plugin commit pins
+        run: |
+          pins="$(sed -nE 's/^[[:space:]]*\["[0-9a-f]{40}",[[:space:]]*"([0-9a-f]{40})"\].*/\1/p' hyprpm.toml)"
+          test -n "$pins"
+          for pin in $pins; do
+            git cat-file -e "${pin}^{commit}"
+          done
 
       - name: Install validation tools
         run: |

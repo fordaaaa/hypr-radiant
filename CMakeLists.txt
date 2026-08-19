@@ -17,7 +17,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(HYPR_RADIANT_BUILD_PLUGIN)
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(HYPRLAND REQUIRED IMPORTED_TARGET hyprland)
+    pkg_check_modules(HYPRLAND REQUIRED IMPORTED_TARGET "hyprland>=0.55")
+    pkg_check_modules(AQUAMARINE REQUIRED aquamarine)
+    pkg_check_modules(HYPRUTILS REQUIRED hyprutils)
+    pkg_check_modules(HYPRGRAPHICS REQUIRED hyprgraphics)
+    pkg_check_modules(HYPRLANG REQUIRED hyprlang)
+
+    message(STATUS
+        "Hyprland stack: Hyprland ${HYPRLAND_VERSION}, Aquamarine ${AQUAMARINE_VERSION}, "
+        "hyprutils ${HYPRUTILS_VERSION}, hyprgraphics ${HYPRGRAPHICS_VERSION}, hyprlang ${HYPRLANG_VERSION}"
+    )
 endif()
 
 function(hypr_radiant_enable_warnings target)

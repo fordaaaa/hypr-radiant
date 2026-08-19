@@ -1,4 +1,5 @@
 #include <hypr-radiant/input/InputController.hpp>
+#include <hypr-radiant/input/KeyboardAction.hpp>
 
 #include <hyprland/src/devices/IKeyboard.hpp>
 #include <hyprland/src/event/EventBus.hpp>
@@ -244,82 +245,55 @@ void InputController::install(Callbacks callbacks) {
         if (!isPressed)
             return;
 
-        const auto key       = event.keycode;
-        const auto searching = m_searchActive && m_searchActive();
+        const auto key        = event.keycode;
+        const auto searching  = m_searchActive && m_searchActive();
+        const auto action     = resolveKeyboardAction(key, searching, ctrlHeld(), searchCharForKey(key));
 
-        if (key == KEY_ESC) {
+        switch (action.type) {
+        case KeyboardActionType::Close:
             if (m_close)
                 m_close();
             return;
-        }
-
-        if (key == KEY_ENTER || key == KEY_KPENTER) {
+        case KeyboardActionType::Activate:
             if (!activationArmed())
                 return;
             if (m_activate)
                 m_activate({});
             return;
-        }
-
-        if (key == KEY_BACKSPACE) {
+        case KeyboardActionType::Backspace:
             if (m_backspace)
                 m_backspace();
             if (searching)
                 startBackspaceRepeat();
             return;
-        }
-
-        // Let '/' open search when inactive; otherwise treat it as text.
+        case KeyboardActionType::OpenSearch:
             if (m_openSearch)
                 m_openSearch();
-        return;
-        }
-
-        if (key == KEY_COMMA && ctrlHeld()) {
+            return;
+        case KeyboardActionType::TogglePreferences:
             if (m_togglePreferences)
                 m_togglePreferences();
-        return;
-        }
-
-        if (key == KEY_TAB) {
-        if (!searching) {
-                if (m_toggleMode)
-                    m_toggleMode();
-        }
-        return;
-        }
-
-        // hardcode the workspace kbs, with the fix for the 0 key, and text going into keymapss
-        if (key >= KEY_1 && key <= KEY_9 && !searching) {
-            if (m_jump)
-                m_jump(static_cast<std::int64_t>(1 + (key - KEY_1)));
-        return;
-        }
-
-        // no workspace 0, but it is a valid key, so ignore it if not searching
-        if (key == KEY_0 && !searching)
             return;
-
-        if (key == KEY_LEFT) {
+        case KeyboardActionType::ToggleMode:
+            if (m_toggleMode)
+                m_toggleMode();
+            return;
+        case KeyboardActionType::JumpWorkspace:
+            if (m_jump)
+                m_jump(action.workspaceId);
+            return;
+        case KeyboardActionType::Move:
             if (m_move)
-                m_move(NavigationDirection::Left);
-        } else if (key == KEY_RIGHT) {
-            if (m_move)
-                m_move(NavigationDirection::Right);
-        } else if (key == KEY_UP) {
-            if (m_move)
-                m_move(NavigationDirection::Up);
-        } else if (key == KEY_DOWN) {
-            if (m_move)
-                m_move(NavigationDirection::Down);
-        } else if (!ctrlHeld()) {
-        // Ctrl combinations are shortcuts, not text input.
-            if (const auto searchChar = searchCharForKey(key)) {
-                if (m_textInput)
-                    m_textInput(*searchChar);
+                m_move(action.direction);
+            return;
+        case KeyboardActionType::TextInput:
+            if (m_textInput)
+                m_textInput(action.text);
+            return;
+        case KeyboardActionType::None:
+            return;
         }
-        }
-});
+    });
 
     m_seatGrab = makeShared<CSeatGrab>();
     m_seatGrab->m_keyboard = true;

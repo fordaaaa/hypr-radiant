@@ -15,7 +15,8 @@ move between workspaces without leaving the overview.
 
 ## Requirements
 
-- Hyprland 0.55.x or 0.56.x, with development headers matching the compositor you run
+- Omarchy 4 “Quattro”, or another Hyprland installation with the same development stack
+- Hyprland 0.55.2 through 0.56.2, with development headers matching the compositor you run
 - `hyprpm`
 - CMake 3.25 or newer
 - A C++23 compiler
@@ -23,7 +24,24 @@ move between workspaces without leaving the overview.
 
 The plugin ABI is tied to the exact Hyprland build. If the headers do not match,
 the plugin refuses to load, sends a notification, and Hyprland unloads it again.
-Nothing breaks, but you do need to rebuild after a Hyprland update.
+Hyprland plugins also link directly to compositor libraries such as Aquamarine and
+hyprutils. Rebuild the plugin after every Hyprland or compositor-library upgrade,
+even when the Hyprland version string itself did not change.
+
+The Quattro compatibility target is Hyprland 0.56.2 with Aquamarine 0.14.x,
+hyprutils 0.14.x, hyprgraphics 0.5.x, and hyprlang 0.6.x. Confirm the installed
+stack before building:
+
+```sh
+omarchy version
+hyprctl version
+pkg-config --modversion hyprland aquamarine hyprutils hyprgraphics hyprlang
+```
+
+The current source is build-tested against Hyprland 0.55.2, 0.55.4, and 0.56.2.
+HyprPM pins the exact Hyprland 0.55.2 commit to a source revision verified with
+that release; other supported builds compile the current source against their
+own matching headers.
 
 ## Install
 
@@ -38,8 +56,15 @@ hyprpm enable hypr-radiant
 hyprpm reload
 ```
 
-`hyprpm enable` saves the plugin's enabled state. To load enabled plugins
-automatically whenever Hyprland starts, add this once to `hyprland.lua`:
+`hyprpm enable` saves the plugin's enabled state. On Omarchy 4 Quattro, add this
+once to `~/.config/hypr/autostart.lua` so enabled plugins load with Hyprland:
+
+```lua
+o.exec_on_start("hyprpm reload -n")
+```
+
+For another Lua-based Hyprland setup, put the equivalent callback in
+`hyprland.lua`:
 
 ```lua
 hl.on("hyprland.start", function()
@@ -47,8 +72,7 @@ hl.on("hyprland.start", function()
 end)
 ```
 
-Omarchy currently uses Hyprland's legacy configuration syntax. Put the
-equivalent line in `~/.config/hypr/autostart.conf`:
+On a legacy `.conf` setup, use `autostart.conf` instead:
 
 ```ini
 exec-once = hyprpm reload -n
@@ -62,7 +86,13 @@ After rebuilding or updating it:
 ```sh
 hyprpm update
 hyprpm reload
+hyprctl reload
+hyprctl configerrors
 ```
+
+Run those commands again after an `omarchy update` that changes Hyprland,
+Aquamarine, hyprutils, hyprgraphics, or hyprlang. Do not keep loading a binary
+built against the previous stack.
 
 To remove it:
 
@@ -78,7 +108,19 @@ Press `SUPER+A` to open or close the overview. A three-finger swipe up opens it
 and a swipe down closes it.
 
 The plugin leaves an existing `SUPER+A` binding untouched. To use a different
-shortcut, disable the built-in one and bind the toggle yourself:
+shortcut on Quattro, add this after Omarchy's defaults in `hyprland.lua`:
+
+```lua
+if hl.plugin.radiant then
+    hl.config({ plugin = { radiant = { shortcut_enabled = false } } })
+    hl.unbind("SUPER + A")
+    o.bind("SUPER + TAB", "Radiant overview", hl.plugin.radiant.toggle)
+end
+```
+
+The guard lets the first config parse finish before the plugin loads, then
+applies the option and binding during Radiant's queued reload. On a legacy
+`.conf` setup, use:
 
 ```ini
 plugin {
@@ -99,6 +141,9 @@ bind = SUPER, TAB, exec, hyprctl dispatch radiant:toggle
 | `radiant:app` | App Exposé for the focused application |
 | `radiant:shelf show\|hide\|toggle` | Control the workspace shelf |
 | `radiant:status` | Notification with the current state, for debugging |
+
+On Quattro, the equivalent Lua functions are `hl.plugin.radiant.toggle()`,
+`open()`, `close()`, and `status()`.
 
 While it is open, swipe left or right to preview the next workspace. Set
 `gesture_enabled = false` if something else already owns that gesture.
@@ -163,6 +208,30 @@ With the keyboard:
 
 All of it is optional. These are the defaults:
 
+```lua
+if hl.plugin.radiant then
+    hl.config({
+        plugin = {
+            radiant = {
+                opacity = 0.94,
+                animation_duration = 180,
+                layout = "stage",
+                accent_color = "auto",
+                background_color = "auto",
+                foreground_color = "auto",
+                font_family = "JetBrainsMono Nerd Font",
+                shortcut_enabled = true,
+                gesture_enabled = true,
+                gesture_fingers = 3,
+                gesture_distance = 300,
+            },
+        },
+    })
+end
+```
+
+For a legacy `.conf` setup, the equivalent is:
+
 ```ini
 plugin {
     radiant {
@@ -204,29 +273,44 @@ Hyprland/Omarchy-backed value.
 
 ## Building it yourself
 
-Build and reload the development plugin in one command:
+Use a separate build directory so an older plugin binary is not mistaken for the
+Quattro build:
 
 ```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release \
-    && cmake --build build --target hypr-radiant -j"$(nproc)" \
-    && (hyprctl plugin unload "$PWD/build/hypr-radiant.so" 2>/dev/null || true) \
-    && hyprctl plugin load "$PWD/build/hypr-radiant.so"
+cmake -S . -B build/quattro -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+cmake --build build/quattro -j"$(nproc)"
+ctest --test-dir build/quattro --output-on-failure
+ldd build/quattro/hypr-radiant.so
 ```
 
-That gives you `build/hypr-radiant.so` and loads it directly instead of going
-through `hyprpm`, which is much faster while working on it. To unload it:
+Do not load the module if `ldd` reports any library as `not found`. A Quattro
+build should resolve the current Aquamarine and hyprutils sonames. Load it
+directly, then let Hyprland reparse the plugin options it registered:
 
 ```sh
-hyprctl plugin unload "$PWD/build/hypr-radiant.so"
+hyprctl plugin unload "$PWD/build/quattro/hypr-radiant.so"
+hyprctl plugin load "$PWD/build/quattro/hypr-radiant.so"
+hyprctl reload
+hyprctl plugin list
+hyprctl configerrors
+hyprctl getoption plugin:radiant:gesture_distance
 ```
 
-Unloading is clean, so you can reload as often as you want. Direct loading is
-temporary and does not survive a Hyprland restart; use the `hyprpm` installation
-and startup line above for persistent loading. While developing an uncommitted
-build, you can instead put its absolute path in `~/.config/hypr/autostart.conf`:
+If the module was loaded from another path, unload that exact path first; Hyprland
+will not load the same plugin twice. Unloading is clean, so development builds can
+be replaced without restarting the compositor. Direct loading is temporary and
+does not survive a Hyprland restart; use the `hyprpm` installation and startup
+line above for persistent loading. While developing an uncommitted build, put its
+absolute path in Quattro's `~/.config/hypr/autostart.lua`:
+
+```lua
+o.exec_on_start("hyprctl plugin load /absolute/path/to/hypr-radiant/build/quattro/hypr-radiant.so")
+```
+
+On a legacy `.conf` setup, use:
 
 ```ini
-exec-once = hyprctl plugin load /absolute/path/to/hypr-radiant/build/hypr-radiant.so
+exec-once = hyprctl plugin load /absolute/path/to/hypr-radiant/build/quattro/hypr-radiant.so
 ```
 
 ## Troubleshooting
@@ -241,15 +325,28 @@ hyprctl devices
 hyprctl getoption plugin:radiant:gesture_enabled
 hyprctl getoption plugin:radiant:gesture_fingers
 hyprctl getoption plugin:radiant:gesture_distance
-hyprctl dispatch radiant:status
+hyprctl eval 'hl.plugin.radiant.status()'
 ```
+
+On Hyprland's legacy parser, the final command is
+`hyprctl dispatch radiant:status` instead.
 
 The expected gesture values are `int: 1`, `int: 3`, and `float: 300`. A
 `set: false` line means the plugin is using its default value; it does not mean
-the option is disabled.
+the option is disabled. A configured `gesture_distance = 120` should report
+`float: 120.000000` and `set: true`.
 
-If the dispatcher opens the overview but a swipe does not, follow Hyprland's
-input log and then make one deliberate three-finger swipe up:
+If `hyprctl configerrors` reports `Invalid value 120 for finger count`, Radiant's
+configuration was parsed while the plugin was absent. It is not rejecting the
+distance: Hyprland has interpreted `plugin:radiant:gesture_distance` as a
+built-in gesture option because Radiant did not register the key. Check
+`hyprctl plugin list`, run `ldd` on the exact module being loaded, rebuild it
+against the current stack if a soname changed, load it, and then run
+`hyprctl reload`. The `hyprctl plugin load` error is the authoritative startup
+diagnostic; it includes a missing-library or plugin-initialization failure.
+
+If `hl.plugin.radiant.toggle()` opens the overview but a swipe does not, follow
+Hyprland's input log and then make one deliberate three-finger swipe up:
 
 ```sh
 hyprctl rollinglog --follow
@@ -267,6 +364,12 @@ If the log shows the third contact entering `BUTTON_STATE_BOTTOM`, libinput is
 treating the bottom of the pad as a software button instead of part of the
 gesture. Enable clickfinger behavior in Hyprland:
 
+```lua
+hl.config({ input = { touchpad = { clickfinger_behavior = true } } })
+```
+
+On a legacy `.conf` setup, use:
+
 ```ini
 input {
     touchpad {
@@ -277,6 +380,12 @@ input {
 
 You can also test four fingers or a shorter swipe distance without editing any
 files:
+
+```sh
+hyprctl eval 'hl.config({ plugin = { radiant = { gesture_fingers = 4, gesture_distance = 120 } } })'
+```
+
+With Hyprland's legacy parser, use:
 
 ```sh
 hyprctl keyword plugin:radiant:gesture_fingers 4

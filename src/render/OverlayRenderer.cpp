@@ -110,9 +110,9 @@ CHyprColor withAlpha(CHyprColor color, double multiplier) {
 }
 
 void drawSignalLock(const LayoutRect& rect, double progress, CHyprColor color, double alpha, const CRegion& damage) {
-    constexpr auto PI = 3.14159265358979323846;
+    constexpr auto PI_VALUE = 3.14159265358979323846;
     const auto     clamped  = std::clamp(progress, 0.0, 1.0);
-    const auto     strength = std::sin(PI * clamped);
+    const auto     strength = std::sin(PI_VALUE * clamped);
     const auto     settled  = easedProgress(clamped);
     if (alpha <= 0.001)
         return;

@@ -10,6 +10,7 @@
 
 #include <string_view>
 #include <optional>
+#include <string>
 
 namespace hypr_radiant {
 
@@ -28,6 +29,7 @@ enum class LayoutMode {
 class RadiantConfig {
   public:
     bool registerValues(HANDLE handle);
+    [[nodiscard]] const std::string& registrationError() const noexcept;
 
     /// Re-reads the active Omarchy theme palette. Called when the overview opens so a theme
     /// switch is picked up without reloading the plugin.
@@ -59,6 +61,7 @@ class RadiantConfig {
     SP<Config::Values::CFloatValue>  m_gestureDistance;
     SP<Config::Values::CIntValue>    m_shortcutEnabled;
     OmarchyPalette                   m_palette;
+    std::string                      m_registrationError;
 };
 
 } // namespace hypr_radiant

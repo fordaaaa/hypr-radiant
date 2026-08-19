@@ -1,12 +1,16 @@
 #include <hypr-radiant/config/Config.hpp>
+#include <hypr-radiant/Log.hpp>
 
 #include <algorithm>
+#include <array>
+#include <format>
 #include <string>
 #include <string_view>
 
 namespace hypr_radiant {
 
 bool RadiantConfig::registerValues(HANDLE handle) {
+    m_registrationError.clear();
     m_opacity = makeShared<Config::Values::CFloatValue>(
         "plugin:radiant:opacity",
         "Fullscreen overlay opacity.",
@@ -50,12 +54,38 @@ bool RadiantConfig::registerValues(HANDLE handle) {
 
     refreshPalette();
 
-    return HyprlandAPI::addConfigValueV2(handle, m_opacity) && HyprlandAPI::addConfigValueV2(handle, m_animationDurationMs) &&
-        HyprlandAPI::addConfigValueV2(handle, m_layout) && HyprlandAPI::addConfigValueV2(handle, m_accentColor) &&
-        HyprlandAPI::addConfigValueV2(handle, m_backgroundColor) && HyprlandAPI::addConfigValueV2(handle, m_foregroundColor) &&
-        HyprlandAPI::addConfigValueV2(handle, m_fontFamily) &&
-        HyprlandAPI::addConfigValueV2(handle, m_gestureEnabled) && HyprlandAPI::addConfigValueV2(handle, m_gestureFingers) &&
-        HyprlandAPI::addConfigValueV2(handle, m_gestureDistance) && HyprlandAPI::addConfigValueV2(handle, m_shortcutEnabled);
+    const std::array<SP<Config::Values::IValue>, 11> values{
+        m_opacity,
+        m_animationDurationMs,
+        m_layout,
+        m_accentColor,
+        m_backgroundColor,
+        m_foregroundColor,
+        m_fontFamily,
+        m_gestureEnabled,
+        m_gestureFingers,
+        m_gestureDistance,
+        m_shortcutEnabled,
+    };
+
+    for (const auto& value : values) {
+        if (HyprlandAPI::addConfigValueV2(handle, value))
+            continue;
+
+        m_registrationError = std::format(
+            "failed to register Hyprland option {}; rebuild hypr-radiant against the running compositor headers and libraries",
+            value->name());
+        log::error("{}", m_registrationError);
+        HyprlandAPI::addNotification(
+            handle, std::format("[hypr-radiant] {}", m_registrationError), CHyprColor{1.0F, 0.2F, 0.2F, 1.0F}, 7000);
+        return false;
+    }
+
+    return true;
+}
+
+const std::string& RadiantConfig::registrationError() const noexcept {
+    return m_registrationError;
 }
 
 bool RadiantConfig::gestureEnabled() const {

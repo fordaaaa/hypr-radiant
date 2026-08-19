@@ -3,16 +3,28 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace {
+
+std::unordered_map<const Config::Values::IValue*, std::string> configValueNames;
+std::vector<std::string>                                      registeredConfigValues;
+std::string                                                   rejectedConfigValue;
+
+} // namespace
 
 CHyprColor::CHyprColor(float, float, float, float) {}
 
 Log::CLogger::CLogger() {}
+void Log::CLogger::log(Hyprutils::CLI::eLogLevel, const std::string_view&) {}
 
 namespace Config::Values {
 
 IValue::IValue(Supplementary::PropRefreshBits) {}
 const char* IValue::name() const {
-    return "";
+    return configValueNames.at(this).c_str();
 }
 const char* IValue::description() const {
     return "";
@@ -21,7 +33,9 @@ Supplementary::PropRefreshBits IValue::refreshBits() const {
     return 0;
 }
 
-CFloatValue::CFloatValue(const char*, const char*, Config::FLOAT, SFloatValueOptions&&) : IValue(0) {}
+CFloatValue::CFloatValue(const char* name, const char*, Config::FLOAT, SFloatValueOptions&&) : IValue(0) {
+    configValueNames.emplace(this, name);
+}
 const std::type_info* CFloatValue::underlying() const {
     return nullptr;
 }
@@ -33,7 +47,9 @@ Config::FLOAT CFloatValue::defaultVal() const {
     return 0.F;
 }
 
-CIntValue::CIntValue(const char*, const char*, Config::INTEGER, SIntValueOptions&&) : IValue(0) {}
+CIntValue::CIntValue(const char* name, const char*, Config::INTEGER, SIntValueOptions&&) : IValue(0) {
+    configValueNames.emplace(this, name);
+}
 const std::type_info* CIntValue::underlying() const {
     return nullptr;
 }
@@ -45,7 +61,9 @@ Config::INTEGER CIntValue::defaultVal() const {
     return 0;
 }
 
-CStringValue::CStringValue(const char*, const char*, Config::STRING, SStringValueOptions&&) : IValue(0) {}
+CStringValue::CStringValue(const char* name, const char*, Config::STRING, SStringValueOptions&&) : IValue(0) {
+    configValueNames.emplace(this, name);
+}
 const std::type_info* CStringValue::underlying() const {
     return nullptr;
 }
@@ -61,7 +79,12 @@ Config::STRING CStringValue::defaultVal() const {
 
 namespace HyprlandAPI {
 
-bool addConfigValueV2(HANDLE, SP<Config::Values::IValue>) {
+bool addConfigValueV2(HANDLE, SP<Config::Values::IValue> value) {
+    registeredConfigValues.emplace_back(value->name());
+    return registeredConfigValues.back() != rejectedConfigValue;
+}
+
+bool addNotification(HANDLE, const std::string&, const CHyprColor&, float) {
     return true;
 }
 
@@ -121,6 +144,42 @@ void overviewShortcutDefaultIsDiscoverable() {
     assert(DEFAULT_SHORTCUT_ENABLED);
 }
 
+void registersEveryPluginOptionBeforeRuntimeSetup() {
+    registeredConfigValues.clear();
+    rejectedConfigValue.clear();
+
+    RadiantConfig config;
+    assert(config.registerValues(nullptr));
+
+    const std::vector<std::string> expected{
+        "plugin:radiant:opacity",
+        "plugin:radiant:animation_duration",
+        "plugin:radiant:layout",
+        "plugin:radiant:accent_color",
+        "plugin:radiant:background_color",
+        "plugin:radiant:foreground_color",
+        "plugin:radiant:font_family",
+        "plugin:radiant:gesture_enabled",
+        "plugin:radiant:gesture_fingers",
+        "plugin:radiant:gesture_distance",
+        "plugin:radiant:shortcut_enabled",
+    };
+    assert(registeredConfigValues == expected);
+    assert(config.registrationError().empty());
+}
+
+void registrationFailureNamesTheRejectedOption() {
+    registeredConfigValues.clear();
+    rejectedConfigValue = "plugin:radiant:gesture_distance";
+
+    RadiantConfig config;
+    assert(!config.registerValues(nullptr));
+    assert(config.registrationError().contains(rejectedConfigValue));
+    assert(config.registrationError().contains("rebuild"));
+
+    rejectedConfigValue.clear();
+}
+
 } // namespace
 
 int main() {
@@ -132,6 +191,8 @@ int main() {
     rejectsAutomaticAndInvalidAccents();
     overviewGestureDefaultsAreDiscoverable();
     overviewShortcutDefaultIsDiscoverable();
+    registersEveryPluginOptionBeforeRuntimeSetup();
+    registrationFailureNamesTheRejectedOption();
     std::cout << "ConfigParserTest passed\n";
     return 0;
 }

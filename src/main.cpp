@@ -67,10 +67,9 @@ namespace hypr_radiant {
 
 RadiantPlugin::RadiantPlugin(HANDLE handle) : m_handle(handle), m_overlay(m_config, m_preferences) {}
 
-bool RadiantPlugin::initialize() {
+void RadiantPlugin::initialize() {
     if (!m_config.registerValues(m_handle)) {
-        log::error("failed to register config values");
-        return false;
+        throw std::runtime_error{m_config.registrationError()};
     }
     m_preferences.load();
 
@@ -190,7 +189,6 @@ bool RadiantPlugin::initialize() {
                 m_input.releaseKeyboard();
             } },
     });
-    return true;
 }
 
 void RadiantPlugin::installDefaultShortcut() {
@@ -439,12 +437,16 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
 
     g_plugin = std::make_unique<hypr_radiant::RadiantPlugin>(g_pluginHandle);
 
-    // On partial-init failure, resetPluginState()/shutdown() removes hypr-radiant's
-    // listeners before throwing; Hyprland 0.55.2 catches the exception and ejects
-    // the plugin, removing any API registrations made before the failure.
-    if (!g_plugin->initialize()) {
+    // Hyprland 0.56 queues its config reload only after pluginInit returns. Registering every
+    // plugin option as initialize()'s first operation ensures values such as gesture_distance are
+    // known before that reload reparses the user's configuration.
+    try {
+        g_plugin->initialize();
+    } catch (...) {
+        // On partial-init failure, shutdown removes Radiant's listeners before Hyprland ejects the
+        // plugin and removes any API registrations made before the failure.
         resetPluginState();
-        throw std::runtime_error{"hypr-radiant: failed to initialize"};
+        throw;
     }
 
     // Every dispatcher shares one wrapper: the null-plugin guard and the exception handling used to

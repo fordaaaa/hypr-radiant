@@ -34,6 +34,7 @@ constexpr auto CLOSE_RESPONSE_DELAY = std::chrono::milliseconds{140};
 
 HANDLE g_pluginHandle = nullptr;
 std::unique_ptr<hypr_radiant::RadiantPlugin> g_plugin;
+using PluginMethod = SDispatchResult (hypr_radiant::RadiantPlugin::*)(const std::string&);
 
 void resetPluginState() {
     if (g_plugin)
@@ -41,6 +42,41 @@ void resetPluginState() {
 
     g_plugin.reset();
     g_pluginHandle = nullptr;
+}
+
+int invokeLuaPluginMethod(const char* name, PluginMethod method) {
+    try {
+        if (!g_plugin) {
+            hypr_radiant::log::warn("{} ignored because hypr-radiant is not initialized", name);
+            return 0;
+        }
+
+        const auto result = (g_plugin.get()->*method)("");
+        if (!result.success)
+            hypr_radiant::log::warn("{} failed: {}", name, result.error);
+    } catch (const std::exception& error) {
+        hypr_radiant::log::error("{} failed: {}", name, error.what());
+    } catch (...) {
+        hypr_radiant::log::error("{} failed with an unknown error", name);
+    }
+
+    return 0;
+}
+
+int luaToggle(lua_State*) {
+    return invokeLuaPluginMethod("hl.plugin.radiant.toggle", &hypr_radiant::RadiantPlugin::toggle);
+}
+
+int luaOpen(lua_State*) {
+    return invokeLuaPluginMethod("hl.plugin.radiant.open", &hypr_radiant::RadiantPlugin::open);
+}
+
+int luaClose(lua_State*) {
+    return invokeLuaPluginMethod("hl.plugin.radiant.close", &hypr_radiant::RadiantPlugin::close);
+}
+
+int luaStatus(lua_State*) {
+    return invokeLuaPluginMethod("hl.plugin.radiant.status", &hypr_radiant::RadiantPlugin::status);
 }
 
 void assertCompatibleHeaders() {
@@ -453,7 +489,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     // be copy-pasted six times, and two of them (shelf, status) had silently dropped the try/catch,
     // so an exception there would have unwound into Hyprland. Registering through one helper makes
     // that impossible to get inconsistent.
-    using PluginMethod = SDispatchResult (hypr_radiant::RadiantPlugin::*)(const std::string&);
     const auto registerDispatcher = [](const char* name, PluginMethod method) {
         return HyprlandAPI::addDispatcherV2(g_pluginHandle, name, [name, method](std::string args) -> SDispatchResult {
             try {
@@ -483,12 +518,22 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
         throw std::runtime_error{"hypr-radiant: failed to register dispatchers"};
     }
 
+    const bool allLuaFunctionsRegistered = HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "toggle", luaToggle)
+        && HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "open", luaOpen)
+        && HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "close", luaClose)
+        && HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "status", luaStatus);
+
+    if (!allLuaFunctionsRegistered) {
+        resetPluginState();
+        throw std::runtime_error{"hypr-radiant: failed to register Lua functions"};
+    }
+
     // A keybind can only target a dispatcher Hyprland already knows about. Installing it before the
     // plugin dispatchers made the default shortcut disappear during plugin startup and config
     // reloads on Hyprland 0.56.
     g_plugin->installDefaultShortcut();
 
-    hypr_radiant::log::info("loaded; overview and shelf dispatchers registered");
+    hypr_radiant::log::info("loaded; overview dispatchers and Lua functions registered");
 
     return {
         .name        = PLUGIN_NAME,

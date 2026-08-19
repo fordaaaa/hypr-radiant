@@ -27,6 +27,20 @@ if(HYPR_RADIANT_BUILD_PLUGIN)
         "Hyprland stack: Hyprland ${HYPRLAND_VERSION}, Aquamarine ${AQUAMARINE_VERSION}, "
         "hyprutils ${HYPRUTILS_VERSION}, hyprgraphics ${HYPRGRAPHICS_VERSION}, hyprlang ${HYPRLANG_VERSION}"
     )
+
+    if(HYPRLAND_VERSION VERSION_GREATER_EQUAL "0.56")
+        set(HYPR_RADIANT_HYPRLAND_STATE_API 1)
+        set(HYPR_RADIANT_HYPRLAND_LOGGER_NEEDS_ENV_STUB 0)
+    else()
+        set(HYPR_RADIANT_HYPRLAND_STATE_API 0)
+        set(HYPR_RADIANT_HYPRLAND_LOGGER_NEEDS_ENV_STUB 1)
+    endif()
+
+    if(HYPRLAND_VERSION VERSION_GREATER_EQUAL "0.55.4")
+        set(HYPR_RADIANT_HYPRLAND_CONFIG_VALUE_BASE 1)
+    else()
+        set(HYPR_RADIANT_HYPRLAND_CONFIG_VALUE_BASE 0)
+    endif()
 endif()
 
 function(hypr_radiant_enable_warnings target)
@@ -96,6 +110,11 @@ if(HYPR_RADIANT_BUILD_PLUGIN)
     target_compile_options(hypr-radiant
         PRIVATE
             -fno-gnu-unique
+    )
+
+    target_compile_definitions(hypr-radiant
+        PRIVATE
+            HYPR_RADIANT_HYPRLAND_STATE_API=${HYPR_RADIANT_HYPRLAND_STATE_API}
     )
 
     hypr_radiant_enable_warnings(hypr-radiant)
@@ -184,16 +203,22 @@ if(BUILD_TESTING)
             PRIVATE
                 ${CMAKE_CURRENT_SOURCE_DIR}/include
         )
+        target_include_directories(hypr-radiant-config-tests
+            SYSTEM PRIVATE
+                ${HYPRLAND_INCLUDE_DIRS}
+        )
 
         target_compile_features(hypr-radiant-config-tests PRIVATE cxx_std_23)
         target_compile_options(hypr-radiant-config-tests PRIVATE -UNDEBUG -Wno-missing-field-initializers)
+        target_compile_definitions(hypr-radiant-config-tests
+            PRIVATE
+                HYPR_RADIANT_HYPRLAND_CONFIG_VALUE_BASE=${HYPR_RADIANT_HYPRLAND_CONFIG_VALUE_BASE}
+                HYPR_RADIANT_HYPRLAND_LOGGER_NEEDS_ENV_STUB=${HYPR_RADIANT_HYPRLAND_LOGGER_NEEDS_ENV_STUB}
+        )
         hypr_radiant_enable_warnings(hypr-radiant-config-tests)
         hypr_radiant_enable_sanitizers(hypr-radiant-config-tests)
-        target_link_libraries(hypr-radiant-config-tests
-            PRIVATE
-                PkgConfig::HYPRLAND
-        )
-
+        target_link_directories(hypr-radiant-config-tests PRIVATE ${HYPRUTILS_LIBRARY_DIRS})
+        target_link_libraries(hypr-radiant-config-tests PRIVATE ${HYPRUTILS_LIBRARIES})
         add_test(NAME hypr-radiant-config-tests COMMAND hypr-radiant-config-tests)
     endif()
 

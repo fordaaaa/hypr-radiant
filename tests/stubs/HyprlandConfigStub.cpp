@@ -7,6 +7,7 @@
 // available to test executables.  This stub provides the minimal symbols
 // needed by ConfigParserTest.cpp without mocking any compositor globals.
 
+#if HYPR_RADIANT_HYPRLAND_CONFIG_VALUE_BASE
 CConfigValueBase::CConfigValueBase()  = default;
 CConfigValueBase::~CConfigValueBase() = default;
 
@@ -17,3 +18,12 @@ std::vector<CConfigValueBase*>& CConfigValueBase::registry() {
 
 void CConfigValueBase::flushCaches() {
 }
+#endif
+
+#if HYPR_RADIANT_HYPRLAND_LOGGER_NEEDS_ENV_STUB
+namespace Env {
+bool isTrace() {
+    return false;
+}
+} // namespace Env
+#endif

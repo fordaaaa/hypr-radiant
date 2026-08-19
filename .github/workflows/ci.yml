@@ -10,7 +10,8 @@ permissions:
 jobs:
   logic:
     name: Pure logic validation
-    runs-on: ubuntu-24.04
+    # Ubuntu 26.04 includes LLVM 22, CMake, GCC, and pkg-config on the runner image.
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     env:
       ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
@@ -50,22 +51,6 @@ jobs:
           for pin in $pins; do
             git cat-file -e "${pin}^{commit}"
           done
-
-      - name: Install validation tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            ca-certificates \
-            cmake \
-            g++ \
-            pkg-config \
-            wget
-          wget --quiet https://apt.llvm.org/llvm.sh --output-document=/tmp/llvm.sh
-          chmod +x /tmp/llvm.sh
-          sudo /tmp/llvm.sh 22
-          sudo apt-get install -y --no-install-recommends \
-            clang-format-22 \
-            clang-tidy-22
 
       - name: Report validation toolchain
         run: |
@@ -112,7 +97,7 @@ jobs:
               ;;
             *)
               echo "available=false" >> "$GITHUB_OUTPUT"
-              echo "::notice title=Full plugin build skipped::Supported Hyprland headers/pkg-config are not available on ubuntu-24.04. Full plugin builds are validated against matching Hyprland headers."
+              echo "::notice title=Full plugin build skipped::Supported Hyprland headers/pkg-config are not available on ubuntu-26.04. Full plugin builds are validated against matching Hyprland headers."
               ;;
           esac
 

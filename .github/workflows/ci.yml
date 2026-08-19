@@ -105,13 +105,16 @@ jobs:
             version=""
           fi
 
-          if [ "$version" = "0.55.2" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "Hyprland $version headers are available; running full plugin build."
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Full plugin build skipped::Hyprland 0.55.2 headers/pkg-config are not available on ubuntu-24.04. Full plugin builds are validated locally against matching Hyprland headers."
-          fi
+          case "$version" in
+            0.55.2|0.55.4|0.56.2)
+              echo "available=true" >> "$GITHUB_OUTPUT"
+              echo "Hyprland $version headers are available; running full plugin build."
+              ;;
+            *)
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=Full plugin build skipped::Supported Hyprland headers/pkg-config are not available on ubuntu-24.04. Full plugin builds are validated against matching Hyprland headers."
+              ;;
+          esac
 
       - name: Build full plugin when matching headers exist
         if: steps.hyprland-headers.outputs.available == 'true'

@@ -1,5 +1,7 @@
 #include <hypr-radiant/config/Preferences.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <system_error>
@@ -13,6 +15,16 @@ std::string_view trim(std::string_view value) {
     while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r'))
         value.remove_suffix(1);
     return value;
+}
+
+std::string themeSlug(std::string_view value) {
+    if (value == "auto" || value == "current" || value == "config")
+        return {};
+    if (value.empty() || !std::ranges::all_of(value, [](unsigned char character) {
+            return std::islower(character) || std::isdigit(character) || character == '-';
+       }))
+        return {};
+    return std::string{value};
 }
 
 void parseLine(PreferencesState& preferences, std::string_view line) {
@@ -66,6 +78,8 @@ void parseLine(PreferencesState& preferences, std::string_view line) {
             preferences.motion = MotionPreference::Off;
         else
             preferences.motion = MotionPreference::FollowConfig;
+    } else if (key == "native_theme") {
+        preferences.nativeTheme = themeSlug(value);
     }
 }
 
@@ -148,7 +162,8 @@ std::string serializePreferences(const PreferencesState& preferences) {
         "workspace_view = " + std::string{value(preferences.workspaceView)} + "\n"
         "window_view = " + std::string{value(preferences.windowView)} + "\n"
         "accent = " + std::string{value(preferences.accent)} + "\n"
-        "motion = " + std::string{value(preferences.motion)} + "\n";
+        "motion = " + std::string{value(preferences.motion)} + "\n"
+        "native_theme = " + (preferences.nativeTheme.empty() ? "auto" : preferences.nativeTheme) + "\n";
 }
 
 std::filesystem::path defaultPreferencesPath() {

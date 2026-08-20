@@ -2,8 +2,10 @@
 
 #include <hypr-radiant/config/Color.hpp>
 
+#include <filesystem>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace hypr_radiant {
 
@@ -18,6 +20,17 @@ struct OmarchyPalette {
     bool      loaded = false;
 };
 
+/// One Omarchy theme visible to `omarchy theme list`. User and stock paths are retained
+/// separately because Omarchy overlays user files on top of a stock theme with the same slug.
+struct OmarchyTheme {
+    std::string           slug;
+    std::string           name;
+    std::filesystem::path userPath;
+    std::filesystem::path stockPath;
+
+    bool operator==(const OmarchyTheme&) const = default;
+};
+
 /// Parses the `key = "#RRGGBB"` pairs of an Omarchy `colors.toml` payload.
 /// Unrecognised or malformed keys keep their neutral gray default.
 [[nodiscard]] OmarchyPalette parseOmarchyPalette(std::string_view contents);
@@ -25,8 +38,14 @@ struct OmarchyPalette {
 /// Preferred Omarchy Quattro palette path. Empty when `$HOME` is unset.
 [[nodiscard]] std::string omarchyPalettePath();
 
-/// Reads Quattro's active theme palette, with an Omarchy 3 path fallback, then neutral gray.
-[[nodiscard]] OmarchyPalette loadOmarchyPalette();
+/// Returns every installed user and stock Omarchy theme, de-duplicated by slug and sorted by
+/// display name in the same style as `omarchy theme list`.
+[[nodiscard]] std::vector<OmarchyTheme> installedOmarchyThemes();
+
+/// Reads Quattro's active palette when `themeSlug` is empty. A named installed theme is loaded
+/// without applying it system-wide; legacy themes fall back to their Alacritty palette just as
+/// `omarchy theme set` does.
+[[nodiscard]] OmarchyPalette loadOmarchyPalette(std::string_view themeSlug = {});
 
 /// True when the palette reads as a light theme, so surfaces must darken rather than lighten.
 [[nodiscard]] bool isLightPalette(const OmarchyPalette& palette);

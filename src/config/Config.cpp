@@ -140,8 +140,8 @@ std::optional<CHyprColor> RadiantConfig::accentColorOverride() const {
     return CHyprColor{parsed->red, parsed->green, parsed->blue, parsed->alpha};
 }
 
-void RadiantConfig::refreshPalette() {
-    m_palette = loadOmarchyPalette();
+void RadiantConfig::refreshPalette(std::string_view themeSlug) {
+    m_palette = loadOmarchyPalette(themeSlug);
 }
 
 const OmarchyPalette& RadiantConfig::palette() const {

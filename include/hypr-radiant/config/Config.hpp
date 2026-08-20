@@ -32,9 +32,9 @@ class RadiantConfig {
     bool registerValues(HANDLE handle);
     [[nodiscard]] const std::string& registrationError() const noexcept;
 
-    /// Re-reads the active Omarchy theme palette. Called when the overview opens so a theme
-    /// switch is picked up without reloading the plugin.
-    void refreshPalette();
+    /// Re-reads the desktop's active Omarchy palette, or an installed named theme for Radiant
+    /// only. Called when the overview opens so installed and active theme changes need no reload.
+    void refreshPalette(std::string_view themeSlug = {});
     [[nodiscard]] const OmarchyPalette& palette() const;
 
     [[nodiscard]] float           opacity() const;

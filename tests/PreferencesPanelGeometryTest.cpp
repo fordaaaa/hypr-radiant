@@ -51,6 +51,40 @@ void identifiesEveryControl() {
     assert(hitTestPreferencesPanel(frame, 0.0, 0.0).control == PreferenceControl::None);
 }
 
+void presentsInstalledThemesAsACompactSelector() {
+    constexpr auto themeCount = 28;
+    const auto frame = computePreferencesPanel({.width = 1920.0, .height = 1080.0}, true, themeCount);
+    assert(frame.panel.width == 820.0);
+    assert(frame.panel.height == 422.0);
+    assert(frame.panel.x == 550.0);
+    assert(frame.panel.y == 329.0);
+    assert(frame.nativeThemesPane.width == 0.0);
+    assert(frame.rows.size() == 5);
+    assert(frame.rows.back().control == PreferenceControl::NativeTheme);
+    assert(frame.appExposeButton.y > frame.rows.back().rect.y + frame.rows.back().rect.height);
+
+    const auto nativeThemeCount = std::ranges::count_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme;
+    });
+    assert(nativeThemeCount == 3);
+    const auto previousTheme = std::ranges::find_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme && option.value == 0;
+    });
+    const auto selectedTheme = std::ranges::find_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme && option.value == 1;
+    });
+    const auto nextTheme = std::ranges::find_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme && option.value == 2;
+    });
+    assert(previousTheme != frame.options.end());
+    assert(selectedTheme != frame.options.end());
+    assert(nextTheme != frame.options.end());
+    assert(selectedTheme->rect.width > previousTheme->rect.width);
+    assert(selectedTheme->rect.width > nextTheme->rect.width);
+    assert(hitTestPreferencesPanel(frame, nextTheme->rect.x + 2.0, nextTheme->rect.y + 2.0) ==
+           (PreferenceHit{.control = PreferenceControl::NativeTheme, .value = 2}));
+}
+
 } // namespace
 
 int main() {
@@ -58,6 +92,7 @@ int main() {
     staysInsideSmallMonitor();
     wallAndCarouselOmitWindowArrangement();
     identifiesEveryControl();
+    presentsInstalledThemesAsACompactSelector();
     std::cout << "PreferencesPanelGeometryTest passed\n";
     return 0;
 }

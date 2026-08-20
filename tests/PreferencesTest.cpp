@@ -13,6 +13,7 @@ void defaultsFollowExistingConfig() {
     assert(preferences.windowView == WindowViewPreference::Spatial);
     assert(preferences.accent == AccentPreference::FollowConfig);
     assert(preferences.motion == MotionPreference::FollowConfig);
+    assert(preferences.nativeTheme.empty());
 }
 
 void parsesEveryPreference() {
@@ -21,11 +22,13 @@ workspace_view = workspace_wall
 window_view=grouped
 accent = violet
 motion = reduced
+native_theme = tokyo-night
 )");
     assert(preferences.workspaceView == WorkspaceViewPreference::WorkspaceWall);
     assert(preferences.windowView == WindowViewPreference::Grouped);
     assert(preferences.accent == AccentPreference::Violet);
     assert(preferences.motion == MotionPreference::Reduced);
+    assert(preferences.nativeTheme == "tokyo-night");
 }
 
 void parsesQuattroPreferences() {
@@ -58,6 +61,13 @@ void parsesDistinctAnimationProfiles() {
     assert(parsePreferences("motion = elegant\n").motion == MotionPreference::Elegant);
 }
 
+void validatesNativeThemeSlugs() {
+    assert(parsePreferences("native_theme = osaka-jade\n").nativeTheme == "osaka-jade");
+    assert(parsePreferences("native_theme = auto\n").nativeTheme.empty());
+    assert(parsePreferences("native_theme = ../../outside\n").nativeTheme.empty());
+    assert(parsePreferences("native_theme = Tokyo-Night\n").nativeTheme.empty());
+}
+
 void ignoresUnknownKeysAndFallsBackOnUnknownValues() {
     const auto preferences = parsePreferences(R"(
 unknown = preserved-nowhere
@@ -73,8 +83,9 @@ void serializationRoundTrips() {
     const PreferencesState expected{
         .workspaceView = WorkspaceViewPreference::Carousel,
         .windowView = WindowViewPreference::Deck,
-        .accent = AccentPreference::Blue,
-        .motion = MotionPreference::Quattro,
+        .accent      = AccentPreference::Blue,
+        .motion      = MotionPreference::Quattro,
+        .nativeTheme = "tokyo-night",
     };
     assert(parsePreferences(serializePreferences(expected)) == expected);
 }
@@ -94,6 +105,7 @@ int main() {
     parsesEveryPreference();
     parsesQuattroPreferences();
     parsesDistinctAnimationProfiles();
+    validatesNativeThemeSlugs();
     ignoresUnknownKeysAndFallsBackOnUnknownValues();
     serializationRoundTrips();
     accentNavigationFollowsArrowDirectionAndWraps();

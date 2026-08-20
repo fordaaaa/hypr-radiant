@@ -446,12 +446,14 @@ void OverlayRenderer::moveSelection(NavigationDirection direction) {
             PreferenceControl::WindowView,
             PreferenceControl::Motion,
             PreferenceControl::Accent,
+            PreferenceControl::NativeTheme,
             PreferenceControl::AppExpose,
         };
         static constexpr std::array globalControls{
             PreferenceControl::WorkspaceView,
             PreferenceControl::Motion,
             PreferenceControl::Accent,
+            PreferenceControl::NativeTheme,
             PreferenceControl::AppExpose,
         };
         const auto controls = effectiveLayoutMode() == LayoutMode::Stage ?
@@ -889,7 +891,8 @@ void OverlayRenderer::togglePreferences() {
         // Quattro swaps the active theme directory atomically. Re-read it at the point the panel
         // appears as well as when the overview opens, so Ctrl+, cannot retain colors from the theme
         // that happened to be active at session start.
-        m_config.refreshPalette();
+        m_installedThemes = installedOmarchyThemes();
+        m_config.refreshPalette(m_preferences.state().nativeTheme);
         m_labels.clear();
         if (m_preferencesMonitorId == -1) {
             if (const auto* frame = frameForSelectedTarget())
@@ -1790,7 +1793,8 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
     if (!m_preferencesVisible || frame.monitorId != m_preferencesMonitorId)
         return;
 
-    const auto geometry   = computePreferencesPanel(frame.bounds, effectiveLayoutMode() == LayoutMode::Stage);
+    const auto geometry   = computePreferencesPanel(
+        frame.bounds, effectiveLayoutMode() == LayoutMode::Stage, nativeThemeOptionCount());
     const auto accent     = resolvedAccentColor();
     const auto foreground = m_config.foregroundColor();
     const auto panelBox   = boxFor(geometry.panel);
@@ -1802,7 +1806,14 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
     constexpr auto panelRadius = 0;
     const auto     panelSurface = surfaceColor(0.0F, panelAlpha * 0.985);
     drawRect(panelBox, panelSurface, damage, panelRadius, true);
-    drawBorder(panelBox, withAlpha(accent, panelAlpha), panelRadius, 2);
+    drawBorder(panelBox, withAlpha(foreground, panelAlpha * 0.24), panelRadius, 1);
+    constexpr auto signalLength = 64.0;
+    drawRect(CBox{panelBox.x, panelBox.y, signalLength, 2.0}, withAlpha(accent, panelAlpha * 0.94), damage);
+    drawRect(CBox{panelBox.x, panelBox.y, 2.0, 28.0}, withAlpha(accent, panelAlpha * 0.94), damage);
+    drawRect(CBox{panelBox.x + panelBox.w - signalLength, panelBox.y + panelBox.h - 2.0, signalLength, 2.0},
+        withAlpha(accent, panelAlpha * 0.64), damage);
+    drawRect(CBox{panelBox.x + panelBox.w - 2.0, panelBox.y + panelBox.h - 28.0, 2.0, 28.0},
+        withAlpha(accent, panelAlpha * 0.64), damage);
 
     const auto closeBox = boxFor(geometry.closeButton);
     const auto closeSelected = m_selectedPreference == PreferenceControl::Close;
@@ -1820,6 +1831,8 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
         case PreferenceControl::Motion:
             return "MOTION";
         case PreferenceControl::Accent:
+            return "HIGHLIGHT";
+        case PreferenceControl::NativeTheme:
             return "THEME";
         case PreferenceControl::None:
         case PreferenceControl::AppExpose:
@@ -1855,6 +1868,8 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
             return static_cast<int>(m_preferences.state().motion);
         case PreferenceControl::Accent:
             return static_cast<int>(m_preferences.state().accent);
+        case PreferenceControl::NativeTheme:
+            return 1;
         case PreferenceControl::None:
         case PreferenceControl::AppExpose:
         case PreferenceControl::Close:
@@ -1862,7 +1877,7 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
         }
         return -1;
     };
-    const auto optionLabel = [](PreferenceControl control, int value) -> std::string {
+    const auto optionLabel = [this](PreferenceControl control, int value) -> std::string {
         switch (control) {
         case PreferenceControl::WorkspaceView:
             return value == 0 ? "STAGE" : value == 1 ? "WALL"
@@ -1879,6 +1894,14 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
                 static constexpr std::array labels{"AUTO", "GREEN", "BLUE", "VIOLET"};
                 return labels[static_cast<std::size_t>(std::clamp(value, 0, 3))];
         }
+        case PreferenceControl::NativeTheme:
+            if (value == 0)
+                return "<";
+            if (value == 2)
+                return ">";
+            if (const auto selected = selectedNativeThemeIndex(); selected > 0)
+                return m_installedThemes[static_cast<std::size_t>(selected - 1)].name;
+            return "CURRENT";
         case PreferenceControl::None:
         case PreferenceControl::AppExpose:
         case PreferenceControl::Close:
@@ -1890,8 +1913,40 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
         const auto optionBox = boxFor(option.rect);
         const auto active    = option.value == activeOption(option.control);
         const auto focused   = active && option.control == m_selectedPreference;
-        drawRect(optionBox, withAlpha(foreground, panelAlpha * (active ? 0.18 : 0.0)), damage, 0);
-        drawBorder(optionBox, withAlpha(foreground, panelAlpha * (focused ? 0.25 : 0.40)), 0, 1);
+        const auto nativeTheme = option.control == PreferenceControl::NativeTheme;
+        if (nativeTheme) {
+            drawRect(optionBox, withAlpha(foreground,
+                panelAlpha * (option.value == 1 ? focused ? 0.15 : 0.08 : 0.0)), damage, 0);
+            drawBorder(optionBox, withAlpha(foreground,
+                panelAlpha * (focused ? 0.30 : option.value == 1 ? 0.20 : 0.36)), 0, 1);
+            if (option.value != 1) {
+                m_labels.renderCentered(optionLabel(option.control, option.value), optionBox,
+                    Theme::hintSize(), foreground, panelAlpha * 0.76, damage);
+                continue;
+            }
+
+            constexpr auto swatchWidth = 14.0;
+            constexpr auto swatchGap   = 4.0;
+            constexpr auto swatchCount = 3.0;
+            const auto swatchesWidth = swatchWidth * swatchCount + swatchGap * (swatchCount - 1.0);
+            const auto swatchesX = optionBox.x + optionBox.w - swatchesWidth - 10.0;
+            const std::array swatches{
+                m_config.backgroundColor(), m_config.foregroundColor(), resolvedAccentColor()};
+            for (std::size_t index = 0; index < swatches.size(); ++index) {
+                drawRect(CBox{swatchesX + static_cast<double>(index) * (swatchWidth + swatchGap),
+                             optionBox.y + centered(optionBox.h, 8.0), swatchWidth, 8.0},
+                    withAlpha(swatches[index], panelAlpha * 0.94), damage, 1);
+            }
+            m_labels.renderColored(optionLabel(option.control, option.value), optionBox.x + 12.0,
+                optionBox.y + centered(optionBox.h, 12.0),
+                std::max(1.0, swatchesX - optionBox.x - 20.0), Theme::hintSize(),
+                focused ? accent : foreground, panelAlpha * (focused ? 1.0 : 0.78), damage);
+            continue;
+        }
+        drawRect(optionBox, withAlpha(foreground,
+            panelAlpha * (active ? 0.18 : 0.0)), damage, 0);
+        drawBorder(optionBox, withAlpha(foreground,
+            panelAlpha * (focused ? 0.30 : 0.40)), 0, 1);
         m_labels.renderCentered(optionLabel(option.control, option.value), optionBox, Theme::hintSize(),
             active ? accent : foreground, panelAlpha * (active ? 1.0 : 0.72), damage);
     }
@@ -2574,8 +2629,8 @@ PreferenceHit OverlayRenderer::preferenceControlAt(double x, double y) const {
     const auto* frame = frameForPoint(x, y, localX, localY);
     if (!frame || frame->monitorId != m_preferencesMonitorId)
         return {};
-    return hitTestPreferencesPanel(
-        computePreferencesPanel(frame->bounds, effectiveLayoutMode() == LayoutMode::Stage), localX, localY);
+    return hitTestPreferencesPanel(computePreferencesPanel(
+        frame->bounds, effectiveLayoutMode() == LayoutMode::Stage, nativeThemeOptionCount()), localX, localY);
 }
 
 PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int value, int step) {
@@ -2635,6 +2690,19 @@ PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int va
         else
                 state.accent = stepAccentPreference(state.accent, step);
         break;
+    case PreferenceControl::NativeTheme: {
+        const auto count = nativeThemeOptionCount();
+        if (count <= 0)
+            return {};
+        if (value == 1)
+            return {};
+        const auto direction = value == 0 ? -1 : value == 2 ? 1 : step;
+        const auto current = selectedNativeThemeIndex();
+        const auto selected = ((current + direction) % count + count) % count;
+        state.nativeTheme = selected == 0 ? std::string{} : m_installedThemes[static_cast<std::size_t>(selected - 1)].slug;
+        m_config.refreshPalette(state.nativeTheme);
+        break;
+    }
     case PreferenceControl::None:
     case PreferenceControl::AppExpose:
     case PreferenceControl::Close:
@@ -2645,6 +2713,18 @@ PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int va
         log::warn("could not save preferences to {}", m_preferences.path().string());
     rebuildAfterPreferenceChange();
     return {};
+}
+
+int OverlayRenderer::selectedNativeThemeIndex() const noexcept {
+    if (m_preferences.state().nativeTheme.empty())
+        return 0;
+
+    const auto selected = std::ranges::find(m_installedThemes, m_preferences.state().nativeTheme, &OmarchyTheme::slug);
+    return selected == m_installedThemes.end() ? 0 : static_cast<int>(std::distance(m_installedThemes.begin(), selected)) + 1;
+}
+
+int OverlayRenderer::nativeThemeOptionCount() const noexcept {
+    return static_cast<int>(m_installedThemes.size()) + 1;
 }
 
 void OverlayRenderer::rebuildAfterPreferenceChange() {

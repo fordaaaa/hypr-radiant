@@ -136,6 +136,8 @@ class OverlayRenderer {
     [[nodiscard]] OverviewMode defaultOverviewMode() const;
     [[nodiscard]] PreferenceHit preferenceControlAt(double x, double y) const;
     [[nodiscard]] PointerAction applyPreference(PreferenceControl control, int value = -1, int step = 1);
+    [[nodiscard]] int selectedNativeThemeIndex() const noexcept;
+    [[nodiscard]] int nativeThemeOptionCount() const noexcept;
     void rebuildAfterPreferenceChange();
     /// Surface derived from the active theme background, stepped `lift` toward its contrasting
     /// end. Lightens on dark themes and darkens on light ones.
@@ -219,6 +221,7 @@ class OverlayRenderer {
     std::int64_t                                          m_preferencesMonitorId = -1;
     PreferenceControl                                     m_selectedPreference = PreferenceControl::WorkspaceView;
     PreferenceHit                                         m_pointerDownPreference;
+    std::vector<OmarchyTheme>                             m_installedThemes;
     OverviewMode                                          m_mode = OverviewMode::Spatial;
     std::string                                           m_applicationFilter;
     OverviewTarget                                        m_preSearchTarget;

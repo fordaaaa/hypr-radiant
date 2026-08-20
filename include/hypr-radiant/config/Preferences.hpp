@@ -42,6 +42,9 @@ struct PreferencesState {
     WindowViewPreference    windowView    = WindowViewPreference::Spatial;
     AccentPreference accent = AccentPreference::FollowConfig;
     MotionPreference motion = MotionPreference::FollowConfig;
+    /// Empty follows the desktop's active Omarchy theme. Otherwise this is an installed theme
+    /// slug whose palette is applied to Radiant only.
+    std::string nativeTheme;
 
     bool operator==(const PreferencesState&) const = default;
 };

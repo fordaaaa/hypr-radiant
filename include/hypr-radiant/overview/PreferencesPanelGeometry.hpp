@@ -12,6 +12,7 @@ enum class PreferenceControl {
     WindowView,
     Motion,
     Accent,
+    NativeTheme,
     AppExpose,
     Close,
 };
@@ -39,11 +40,13 @@ struct PreferencesPanelFrame {
     LayoutRect                    closeButton;
     std::vector<PreferenceRow>    rows;
     std::vector<PreferenceOption> options;
+    LayoutRect                    settingsPane;
+    LayoutRect                    nativeThemesPane;
     LayoutRect                    appExposeButton;
 };
 
 [[nodiscard]] PreferencesPanelFrame computePreferencesPanel(
-    const LayoutRect& monitorBounds, bool includeWindowArrangement = true);
+    const LayoutRect& monitorBounds, bool includeWindowArrangement = true, int nativeThemeOptionCount = 0);
 [[nodiscard]] PreferenceHit         hitTestPreferencesPanel(const PreferencesPanelFrame& frame, double x, double y);
 
 } // namespace hypr_radiant

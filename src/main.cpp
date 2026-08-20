@@ -199,7 +199,7 @@ void RadiantPlugin::initialize() {
         .shelfVisible = [this] { return m_overlay.workspaceShelfVisible(); },
         .begin = [this](SwipeAction action) {
             if (action == SwipeAction::OpenOverview) {
-                m_config.refreshPalette();
+                m_config.refreshPalette(m_preferences.state().nativeTheme);
                 m_overlay.beginGestureOpen(m_stateCollector.collect());
                 m_lastOpenedAt = Clock::now();
                 m_input.grabKeyboard(InputController::OpeningRelease::Skip);
@@ -244,7 +244,7 @@ SDispatchResult RadiantPlugin::showApplication(const std::string& args) {
         return {.passEvent = false, .success = false, .error = "no focused application"};
 
     auto state = m_stateCollector.collect();
-    m_config.refreshPalette();
+    m_config.refreshPalette(m_preferences.state().nativeTheme);
     m_overlay.showAppExpose(std::move(state), focused->m_class);
     recordTransition(std::format("opened App Expose for {}", focused->m_class));
     m_lastOpenedAt = Clock::now();
@@ -258,7 +258,7 @@ SDispatchResult RadiantPlugin::preferences(const std::string& args) {
         log::warn("radiant:preferences ignores dispatcher arguments: {}", args);
 
     if (!m_overlay.active()) {
-        m_config.refreshPalette();
+        m_config.refreshPalette(m_preferences.state().nativeTheme);
         m_overlay.show(m_stateCollector.collect());
         m_lastOpenedAt = Clock::now();
         m_input.grabKeyboard();
@@ -415,7 +415,7 @@ SDispatchResult RadiantPlugin::toggle(const std::string& args) {
         state.windows.size(),
         state.mappedWindowCount());
 
-    m_config.refreshPalette();
+    m_config.refreshPalette(m_preferences.state().nativeTheme);
     m_overlay.toggle(std::move(state));
 
     if (!wasActive && m_overlay.active()) {
@@ -438,7 +438,7 @@ SDispatchResult RadiantPlugin::open(const std::string& args) {
     if (m_overlay.active())
         return {.passEvent = false, .success = true, .error = ""};
 
-    m_config.refreshPalette();
+    m_config.refreshPalette(m_preferences.state().nativeTheme);
     m_overlay.show(m_stateCollector.collect());
     m_lastOpenedAt = Clock::now();
     m_input.grabKeyboard();
@@ -456,7 +456,7 @@ SDispatchResult RadiantPlugin::close(const std::string& args) {
         return {.passEvent = false, .success = true, .error = ""};
     }
 
-    m_config.refreshPalette();
+    m_config.refreshPalette(m_preferences.state().nativeTheme);
     m_overlay.toggle(m_stateCollector.collect());
     m_input.releaseKeyboard();
     recordTransition("closed by explicit dispatcher");

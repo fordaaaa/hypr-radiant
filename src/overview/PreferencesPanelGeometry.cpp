@@ -11,9 +11,12 @@ bool contains(const LayoutRect& rect, double x, double y) {
 
 } // namespace
 
-PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds, bool includeWindowArrangement) {
-    constexpr auto preferredWidth = 720.0;
-    const auto preferredHeight = includeWindowArrangement ? 362.0 : 302.0;
+PreferencesPanelFrame computePreferencesPanel(
+    const LayoutRect& monitorBounds, bool includeWindowArrangement, int nativeThemeOptionCount) {
+    const auto showNativeThemes = nativeThemeOptionCount > 0;
+    const auto preferredWidth = showNativeThemes ? 820.0 : 720.0;
+    const auto preferredHeight = showNativeThemes ? includeWindowArrangement ? 422.0 : 362.0 : includeWindowArrangement ? 362.0
+                                                                                                             : 302.0;
     constexpr auto outerMargin     = 28.0;
 
     const auto width  = std::max(1.0, std::min(preferredWidth, monitorBounds.width - outerMargin * 2.0));
@@ -29,12 +32,17 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds, b
     const auto rowHeight     = 52.0 * verticalScale;
     const auto rowGap        = 8.0 * verticalScale;
     const auto rowX          = panel.x + 22.0;
-    const auto rowWidth      = std::max(1.0, panel.width - 44.0);
+    const auto innerWidth    = std::max(1.0, panel.width - 44.0);
+    const auto rowWidth = innerWidth;
+    const auto paneY = panel.y + 46.0 * verticalScale;
+    const auto paneHeight = std::max(1.0, panel.height - 68.0 * verticalScale);
     std::vector<PreferenceControl> controls{PreferenceControl::WorkspaceView};
     if (includeWindowArrangement)
         controls.push_back(PreferenceControl::WindowView);
     controls.push_back(PreferenceControl::Motion);
     controls.push_back(PreferenceControl::Accent);
+    if (showNativeThemes)
+        controls.push_back(PreferenceControl::NativeTheme);
 
     PreferencesPanelFrame frame{
         .panel = panel,
@@ -44,9 +52,16 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds, b
             .width  = 24.0,
             .height = 24.0,
         },
-        .rows            = {},
-        .options         = {},
-        .appExposeButton = {},
+        .rows         = {},
+        .options      = {},
+        .settingsPane = {
+            .x      = rowX,
+            .y      = paneY,
+            .width  = rowWidth,
+            .height = paneHeight,
+        },
+        .nativeThemesPane = {},
+        .appExposeButton  = {},
     };
     frame.rows.reserve(controls.size());
     for (std::size_t index = 0; index < controls.size(); ++index) {
@@ -54,7 +69,7 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds, b
             .control = controls[index],
             .rect = {
                 .x      = rowX,
-                .y      = panel.y + 46.0 * verticalScale + static_cast<double>(index) * (rowHeight + rowGap),
+                .y      = paneY + static_cast<double>(index) * (rowHeight + rowGap),
                 .width  = rowWidth,
                 .height = rowHeight,
             },
@@ -70,6 +85,8 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds, b
             return 7;
         case PreferenceControl::Accent:
             return 4;
+        case PreferenceControl::NativeTheme:
+            return 3;
         case PreferenceControl::None:
         case PreferenceControl::AppExpose:
         case PreferenceControl::Close:
@@ -77,12 +94,50 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds, b
         }
         return 0;
     };
-    frame.options.reserve(includeWindowArrangement ? 17 : 14);
+    frame.options.reserve((includeWindowArrangement ? 17 : 14) + (showNativeThemes ? 3 : 0));
     for (const auto& row : frame.rows) {
         const auto optionCount = optionCountFor(row.control);
         constexpr auto optionGap = 6.0;
-        const auto optionsX = row.rect.x + std::min(154.0, row.rect.width * 0.24);
-        const auto optionsWidth = std::max(1.0, row.rect.x + row.rect.width - optionsX);
+        const auto optionsStart = row.rect.x + std::min(154.0, row.rect.width * 0.24);
+        const auto availableWidth = std::max(1.0, row.rect.x + row.rect.width - optionsStart);
+        const auto preferredOptionsWidth = row.control == PreferenceControl::NativeTheme ? 480.0 : availableWidth;
+        const auto optionsWidth = std::min(availableWidth, preferredOptionsWidth);
+        const auto optionsX = row.rect.x + row.rect.width - optionsWidth;
+        if (row.control == PreferenceControl::NativeTheme) {
+            constexpr auto arrowWidth = 42.0;
+            const auto centerWidth = std::max(1.0, optionsWidth - arrowWidth * 2.0 - optionGap * 2.0);
+            frame.options.push_back({
+                .control = row.control,
+                .value   = 0,
+                .rect = {
+                    .x      = optionsX,
+                    .y      = row.rect.y + 8.0 * verticalScale,
+                    .width  = arrowWidth,
+                    .height = row.rect.height - 16.0 * verticalScale,
+                },
+            });
+            frame.options.push_back({
+                .control = row.control,
+                .value   = 1,
+                .rect = {
+                    .x      = optionsX + arrowWidth + optionGap,
+                    .y      = row.rect.y + 8.0 * verticalScale,
+                    .width  = centerWidth,
+                    .height = row.rect.height - 16.0 * verticalScale,
+                },
+            });
+            frame.options.push_back({
+                .control = row.control,
+                .value   = 2,
+                .rect = {
+                    .x      = optionsX + arrowWidth + optionGap + centerWidth + optionGap,
+                    .y      = row.rect.y + 8.0 * verticalScale,
+                    .width  = arrowWidth,
+                    .height = row.rect.height - 16.0 * verticalScale,
+                },
+            });
+            continue;
+        }
         const auto optionWidth = std::max(1.0, (optionsWidth - optionGap * static_cast<double>(optionCount - 1)) / static_cast<double>(optionCount));
         for (int value = 0; value < optionCount; ++value) {
             frame.options.push_back({

@@ -156,13 +156,14 @@ Press `Ctrl+,` while the overview is open. The native Omarchy-style panel contro
 - In Stage, Spatial, application-grouped, or hero-and-supporting Deck window arrangement
 - Default, Snap, Glitch, Lightcycle, Silk, Reduced, or Off overview animations
 - Theme accent or an explicit green, blue or violet accent
+- Any installed Omarchy theme for Radiant, without changing the desktop theme
 - App Exposé for the focused application
 
 Changes are saved immediately to
 `~/.config/hypr-radiant/preferences.conf` (or `$XDG_CONFIG_HOME` when set) and
-survive plugin and Hyprland restarts. `THEME` follows Quattro's active
-`~/.local/state/omarchy/current/theme/colors.toml`; it is re-read whenever the
-overview or its preferences open.
+survive plugin and Hyprland restarts. `CURRENT` follows Quattro's active
+`~/.local/state/omarchy/current/theme/colors.toml`; selecting an installed theme
+applies its palette to Radiant only.
 
 ## Views
 
@@ -274,7 +275,8 @@ plugin {
 
 If no Omarchy theme can be read, the colours fall back to a neutral grey. The
 palette is re-read every time the overview or preferences open, so switching
-themes does not need a reload.
+themes does not need a reload. Installed themes are discovered from Omarchy's
+stock and user theme directories.
 
 The settings panel starts by following these Hyprland values. Choosing Stage or
 Wall or Carousel saves that view as the preference; `THEME` returns the accent to

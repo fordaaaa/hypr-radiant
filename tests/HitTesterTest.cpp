@@ -265,6 +265,22 @@ void carouselNavigationUsesLogicalOrderAndIncludesCreateTarget() {
     assert(wrapped.workspaceId == 1);
 }
 
+void ribbonBladesPromoteWorkspacesInsteadOfTheirWindows() {
+    auto testFrame = frame();
+    testFrame.carousel          = true;
+    testFrame.ribbon            = true;
+    testFrame.previewWorkspaceId = 2;
+
+    const auto blade = HitTester{}.hitTest(testFrame, 40, 40);
+    assert(blade.type == OverviewTargetType::Workspace);
+    assert(blade.workspaceId == 1);
+
+    testFrame.previewWorkspaceId = 1;
+    const auto heroWindow = HitTester{}.hitTest(testFrame, 40, 40);
+    assert(heroWindow.type == OverviewTargetType::Window);
+    assert(heroWindow.windowId == 11);
+}
+
 void horizontalWorkspaceNavigationSkipsEmptyWorkspaces() {
     // Ctrl+wheel, the horizontal three-finger swipe and the arrow keys all step the rail through
     // this path. Filled gap slots are rendered so the numbering reads correctly, but sweeping
@@ -375,6 +391,7 @@ int main() {
     focusedNavigationEntersStageAndReturnsToRail();
     horizontalWorkspaceNavigationWrapsAndSkipsCreateTarget();
     carouselNavigationUsesLogicalOrderAndIncludesCreateTarget();
+    ribbonBladesPromoteWorkspacesInsteadOfTheirWindows();
     horizontalWorkspaceNavigationSkipsEmptyWorkspaces();
     horizontalNavigationStillMovesWhenEveryWorkspaceIsEmpty();
     closeButtonHotspotWinsOverTheWindowBeneathIt();

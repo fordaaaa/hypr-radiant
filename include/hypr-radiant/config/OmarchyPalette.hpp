@@ -3,6 +3,7 @@
 #include <hypr-radiant/config/Color.hpp>
 
 #include <filesystem>
+#include <array>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -53,5 +54,9 @@ struct OmarchyTheme {
 /// Shifts `base` toward the palette's contrasting end by `amount` (0..1).
 /// Lightens on dark themes and darkens on light ones, so one set of call sites serves both.
 [[nodiscard]] RadiantRgba liftedSurface(const OmarchyPalette& palette, const RadiantRgba& base, float amount);
+
+/// Background, foreground, and accent used by the native-theme preview. Keeping this projection
+/// in the palette layer makes it impossible for an interaction-highlight override to leak in.
+[[nodiscard]] std::array<RadiantRgba, 3> themePreviewColors(const OmarchyPalette& palette) noexcept;
 
 } // namespace hypr_radiant

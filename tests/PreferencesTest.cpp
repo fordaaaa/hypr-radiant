@@ -11,7 +11,6 @@ void defaultsFollowExistingConfig() {
     const auto preferences = parsePreferences("");
     assert(preferences.workspaceView == WorkspaceViewPreference::FollowConfig);
     assert(preferences.windowView == WindowViewPreference::Spatial);
-    assert(preferences.accent == AccentPreference::FollowConfig);
     assert(preferences.motion == MotionPreference::FollowConfig);
     assert(preferences.nativeTheme.empty());
 }
@@ -20,13 +19,11 @@ void parsesEveryPreference() {
     const auto preferences = parsePreferences(R"(
 workspace_view = workspace_wall
 window_view=grouped
-accent = violet
 motion = reduced
 native_theme = tokyo-night
 )");
     assert(preferences.workspaceView == WorkspaceViewPreference::WorkspaceWall);
     assert(preferences.windowView == WindowViewPreference::Grouped);
-    assert(preferences.accent == AccentPreference::Violet);
     assert(preferences.motion == MotionPreference::Reduced);
     assert(preferences.nativeTheme == "tokyo-night");
 }
@@ -43,6 +40,13 @@ motion = quattro
     assert(label(preferences.workspaceView) == "CAROUSEL");
     assert(label(preferences.windowView) == "DECK");
     assert(label(preferences.motion) == "SNAP");
+}
+
+void parsesRibbonWorkspaceView() {
+    const auto preferences = parsePreferences("workspace_view = ribbon\n");
+    assert(preferences.workspaceView == WorkspaceViewPreference::Ribbon);
+    assert(label(preferences.workspaceView) == "RIBBON");
+    assert(parsePreferences(serializePreferences(preferences)) == preferences);
 }
 
 void parsesDistinctAnimationProfiles() {
@@ -79,23 +83,20 @@ motion = surprise
     assert(preferences == PreferencesState{});
 }
 
+void ignoresLegacyAccentPreference() {
+    const auto preferences = parsePreferences("accent = green\n");
+    assert(preferences == PreferencesState{});
+    assert(!serializePreferences(preferences).contains("accent ="));
+}
+
 void serializationRoundTrips() {
     const PreferencesState expected{
         .workspaceView = WorkspaceViewPreference::Carousel,
         .windowView = WindowViewPreference::Deck,
-        .accent      = AccentPreference::Blue,
         .motion      = MotionPreference::Quattro,
         .nativeTheme = "tokyo-night",
     };
     assert(parsePreferences(serializePreferences(expected)) == expected);
-}
-
-void accentNavigationFollowsArrowDirectionAndWraps() {
-    assert(stepAccentPreference(AccentPreference::FollowConfig, 1) == AccentPreference::Green);
-    assert(stepAccentPreference(AccentPreference::Green, 1) == AccentPreference::Blue);
-    assert(stepAccentPreference(AccentPreference::Blue, -1) == AccentPreference::Green);
-    assert(stepAccentPreference(AccentPreference::FollowConfig, -1) == AccentPreference::Violet);
-    assert(stepAccentPreference(AccentPreference::Violet, 1) == AccentPreference::FollowConfig);
 }
 
 } // namespace
@@ -104,11 +105,12 @@ int main() {
     defaultsFollowExistingConfig();
     parsesEveryPreference();
     parsesQuattroPreferences();
+    parsesRibbonWorkspaceView();
     parsesDistinctAnimationProfiles();
     validatesNativeThemeSlugs();
     ignoresUnknownKeysAndFallsBackOnUnknownValues();
+    ignoresLegacyAccentPreference();
     serializationRoundTrips();
-    accentNavigationFollowsArrowDirectionAndWraps();
     std::cout << "PreferencesTest passed\n";
     return 0;
 }

@@ -268,4 +268,8 @@ RadiantRgba liftedSurface(const OmarchyPalette& palette, const RadiantRgba& base
     };
 }
 
+std::array<RadiantRgba, 3> themePreviewColors(const OmarchyPalette& palette) noexcept {
+    return {palette.background, palette.foreground, palette.accent};
+}
+
 } // namespace hypr_radiant

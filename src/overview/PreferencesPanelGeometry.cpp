@@ -15,8 +15,8 @@ PreferencesPanelFrame computePreferencesPanel(
     const LayoutRect& monitorBounds, bool includeWindowArrangement, int nativeThemeOptionCount) {
     const auto showNativeThemes = nativeThemeOptionCount > 0;
     const auto preferredWidth = showNativeThemes ? 820.0 : 720.0;
-    const auto preferredHeight = showNativeThemes ? includeWindowArrangement ? 422.0 : 362.0 : includeWindowArrangement ? 362.0
-                                                                                                             : 302.0;
+    const auto preferredHeight = showNativeThemes ? includeWindowArrangement ? 362.0 : 302.0 : includeWindowArrangement ? 302.0
+                                                                                                             : 242.0;
     constexpr auto outerMargin     = 28.0;
 
     const auto width  = std::max(1.0, std::min(preferredWidth, monitorBounds.width - outerMargin * 2.0));
@@ -40,7 +40,6 @@ PreferencesPanelFrame computePreferencesPanel(
     if (includeWindowArrangement)
         controls.push_back(PreferenceControl::WindowView);
     controls.push_back(PreferenceControl::Motion);
-    controls.push_back(PreferenceControl::Accent);
     if (showNativeThemes)
         controls.push_back(PreferenceControl::NativeTheme);
 
@@ -79,12 +78,11 @@ PreferencesPanelFrame computePreferencesPanel(
     const auto optionCountFor = [](PreferenceControl control) {
         switch (control) {
         case PreferenceControl::WorkspaceView:
+            return 4;
         case PreferenceControl::WindowView:
             return 3;
         case PreferenceControl::Motion:
             return 7;
-        case PreferenceControl::Accent:
-            return 4;
         case PreferenceControl::NativeTheme:
             return 3;
         case PreferenceControl::None:
@@ -94,7 +92,7 @@ PreferencesPanelFrame computePreferencesPanel(
         }
         return 0;
     };
-    frame.options.reserve((includeWindowArrangement ? 17 : 14) + (showNativeThemes ? 3 : 0));
+    frame.options.reserve((includeWindowArrangement ? 14 : 11) + (showNativeThemes ? 3 : 0));
     for (const auto& row : frame.rows) {
         const auto optionCount = optionCountFor(row.control);
         constexpr auto optionGap = 6.0;
@@ -176,6 +174,10 @@ PreferenceHit hitTestPreferencesPanel(const PreferencesPanelFrame& frame, double
     if (contains(frame.appExposeButton, x, y))
         return {.control = PreferenceControl::AppExpose};
     return {};
+}
+
+bool containsPreferencesPanel(const PreferencesPanelFrame& frame, double x, double y) {
+    return contains(frame.panel, x, y);
 }
 
 } // namespace hypr_radiant

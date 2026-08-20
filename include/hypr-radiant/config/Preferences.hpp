@@ -12,19 +12,13 @@ enum class WorkspaceViewPreference {
     Stage,
     WorkspaceWall,
     Carousel,
+    Ribbon,
 };
 
 enum class WindowViewPreference {
     Spatial,
     Grouped,
     Deck,
-};
-
-enum class AccentPreference {
-    FollowConfig,
-    Green,
-    Blue,
-    Violet,
 };
 
 enum class MotionPreference {
@@ -40,8 +34,7 @@ enum class MotionPreference {
 struct PreferencesState {
     WorkspaceViewPreference workspaceView = WorkspaceViewPreference::FollowConfig;
     WindowViewPreference    windowView    = WindowViewPreference::Spatial;
-    AccentPreference accent = AccentPreference::FollowConfig;
-    MotionPreference motion = MotionPreference::FollowConfig;
+    MotionPreference        motion        = MotionPreference::FollowConfig;
     /// Empty follows the desktop's active Omarchy theme. Otherwise this is an installed theme
     /// slug whose palette is applied to Radiant only.
     std::string nativeTheme;
@@ -71,10 +64,6 @@ class PreferencesStore {
 
 [[nodiscard]] std::string_view label(WorkspaceViewPreference preference);
 [[nodiscard]] std::string_view label(WindowViewPreference preference);
-[[nodiscard]] std::string_view label(AccentPreference preference);
 [[nodiscard]] std::string_view label(MotionPreference preference);
-/// Returns the adjacent accent in the four-option preferences row. Positive steps move toward
-/// VIOLET and negative steps move toward THEME, wrapping at either end.
-[[nodiscard]] AccentPreference stepAccentPreference(AccentPreference preference, int step);
 
 } // namespace hypr_radiant

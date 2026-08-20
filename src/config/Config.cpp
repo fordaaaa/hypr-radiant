@@ -28,10 +28,6 @@ bool RadiantConfig::registerValues(HANDLE handle) {
         "Overview layout mode.",
         "stage");
 
-    m_accentColor = makeShared<Config::Values::CStringValue>(
-        "plugin:radiant:accent_color",
-        "Overview accent color, or auto to follow the active Omarchy theme.",
-        "auto");
     m_backgroundColor = makeShared<Config::Values::CStringValue>(
         "plugin:radiant:background_color", "Overview glass background color, or auto to follow the Omarchy theme.", "auto");
     m_foregroundColor = makeShared<Config::Values::CStringValue>(
@@ -54,11 +50,10 @@ bool RadiantConfig::registerValues(HANDLE handle) {
 
     refreshPalette();
 
-    const std::array<SP<Config::Values::IValue>, 11> values{
+    const std::array<SP<Config::Values::IValue>, 10> values{
         m_opacity,
         m_animationDurationMs,
         m_layout,
-        m_accentColor,
         m_backgroundColor,
         m_foregroundColor,
         m_fontFamily,
@@ -129,17 +124,6 @@ LayoutMode RadiantConfig::layoutMode() const {
     return parseLayoutMode(m_layout->value());
 }
 
-std::optional<CHyprColor> RadiantConfig::accentColorOverride() const {
-    if (!m_accentColor)
-        return std::nullopt;
-
-    const auto parsed = parseAccentColor(m_accentColor->value());
-    if (!parsed)
-        return std::nullopt;
-
-    return CHyprColor{parsed->red, parsed->green, parsed->blue, parsed->alpha};
-}
-
 void RadiantConfig::refreshPalette(std::string_view themeSlug) {
     m_palette = loadOmarchyPalette(themeSlug);
 }
@@ -169,6 +153,8 @@ std::string RadiantConfig::fontFamily() const {
 }
 
 LayoutMode parseLayoutMode(std::string_view value) {
+    if (value == "ribbon")
+        return LayoutMode::Ribbon;
     if (value == "carousel")
         return LayoutMode::Carousel;
     if (value == "workspace_wall")

@@ -11,7 +11,6 @@ enum class PreferenceControl {
     WorkspaceView,
     WindowView,
     Motion,
-    Accent,
     NativeTheme,
     AppExpose,
     Close,
@@ -47,6 +46,7 @@ struct PreferencesPanelFrame {
 
 [[nodiscard]] PreferencesPanelFrame computePreferencesPanel(
     const LayoutRect& monitorBounds, bool includeWindowArrangement = true, int nativeThemeOptionCount = 0);
+[[nodiscard]] bool                  containsPreferencesPanel(const PreferencesPanelFrame& frame, double x, double y);
 [[nodiscard]] PreferenceHit         hitTestPreferencesPanel(const PreferencesPanelFrame& frame, double x, double y);
 
 } // namespace hypr_radiant

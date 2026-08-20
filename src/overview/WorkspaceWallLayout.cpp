@@ -291,6 +291,100 @@ WorkspaceWallFrame computeCarouselFrame(
     return frame;
 }
 
+WorkspaceWallFrame computeRibbonFrame(
+    const RadiantState& state, const MonitorSnapshot& monitor, const RadiantSize& renderSize, const WorkspaceWallOptions& options,
+    WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById,
+    const std::vector<std::int64_t>& workspaceIds, std::int64_t createTargetId) {
+    // Omarchy's theme picker uses one full preview surrounded by narrow, overlapping slices. Keep
+    // that hierarchy here, but fill every surface with live workspace content instead of images.
+    frame = computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, workspaceIds, createTargetId);
+    frame.carousel = true;
+    frame.ribbon   = true;
+
+    const auto selectedId = options.previewWorkspaceId > 0 ? options.previewWorkspaceId :
+        monitor.activeWorkspaceId > 0 ? monitor.activeWorkspaceId : 1;
+    auto selected = std::ranges::find_if(frame.workspaces, [selectedId](const WorkspaceCard& workspace) {
+        return workspace.workspaceId == selectedId;
+    });
+    if (selected == frame.workspaces.end())
+        selected = frame.workspaces.begin();
+    if (selected == frame.workspaces.end())
+        return frame;
+
+    frame.previewWorkspaceId = selected->workspaceId;
+    const auto selectedIndex = static_cast<std::size_t>(std::distance(frame.workspaces.begin(), selected));
+    const auto referenceScale = std::max(0.42, std::min(renderSize.width / 1920.0, renderSize.height / 1080.0));
+    const auto monitorAspect = monitor.geometry.size.height > 0.0 ?
+        std::max(0.2, monitor.geometry.size.width / monitor.geometry.size.height) :
+        std::max(0.2, renderSize.width / std::max(1.0, renderSize.height));
+    const auto heroWidth  = std::min(768.0 * referenceScale, renderSize.width * 0.58);
+    const auto heroHeight = std::min(heroWidth / monitorAspect, 475.0 * referenceScale);
+    const LayoutRect hero{
+        .x      = centered(renderSize.width, heroWidth),
+        .y      = centered(renderSize.height, heroHeight),
+        .width  = heroWidth,
+        .height = heroHeight,
+    };
+
+    const auto bladeWidth  = std::max(54.0, 108.0 * referenceScale);
+    const auto bladeHeight = std::min(heroHeight * (432.0 / 475.0), 432.0 * referenceScale);
+    const auto bladeStep   = std::max(38.0, 78.0 * referenceScale);
+    const auto heroGap     = std::max(5.0, 8.0 * referenceScale);
+    const auto bladeY      = hero.y + centered(hero.height, bladeHeight);
+
+    const auto remap = [](const LayoutRect& child, const LayoutRect& source, const LayoutRect& target) {
+        if (source.width <= 0.0 || source.height <= 0.0)
+            return child;
+        return LayoutRect{
+            .x      = target.x + (child.x - source.x) / source.width * target.width,
+            .y      = target.y + (child.y - source.y) / source.height * target.height,
+            .width  = child.width / source.width * target.width,
+            .height = child.height / source.height * target.height,
+        };
+    };
+
+    auto railLeft   = hero.x;
+    auto railRight  = hero.x + hero.width;
+    for (std::size_t index = 0; index < frame.workspaces.size(); ++index) {
+        auto& workspace = frame.workspaces[index];
+        const auto oldRect = workspace.rect;
+        if (index == selectedIndex) {
+            workspace.rect = hero;
+        } else if (index < selectedIndex) {
+            const auto distance = static_cast<double>(selectedIndex - index - 1);
+            workspace.rect = {
+                .x      = hero.x - heroGap - bladeWidth - distance * bladeStep,
+                .y      = bladeY,
+                .width  = bladeWidth,
+                .height = bladeHeight,
+            };
+        } else {
+            const auto distance = static_cast<double>(index - selectedIndex - 1);
+            workspace.rect = {
+                .x      = hero.x + hero.width + heroGap + distance * bladeStep,
+                .y      = bladeY,
+                .width  = bladeWidth,
+                .height = bladeHeight,
+            };
+        }
+
+        railLeft  = std::min(railLeft, workspace.rect.x);
+        railRight = std::max(railRight, workspace.rect.x + workspace.rect.width);
+        for (auto& window : workspace.windows)
+            window.rect = remap(window.rect, oldRect, workspace.rect);
+    }
+
+    frame.rail.bounds = {
+        .x      = std::max(0.0, railLeft - 12.0),
+        .y      = std::max(0.0, bladeY - 12.0),
+        .width  = std::min(renderSize.width, railRight + 12.0) - std::max(0.0, railLeft - 12.0),
+        .height = std::min(renderSize.height, bladeY + bladeHeight + 12.0) - std::max(0.0, bladeY - 12.0),
+    };
+    frame.rail.overflowLeft  = railLeft < 0.0;
+    frame.rail.overflowRight = railRight > renderSize.width;
+    return frame;
+}
+
 WorkspaceWallFrame computeFocusedFrame(
     const RadiantState& state, const MonitorSnapshot& monitor, const RadiantSize& renderSize, const WorkspaceWallOptions& options,
     WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById) {
@@ -697,6 +791,7 @@ WorkspaceWallFrame WorkspaceWallLayout::compute(
         .stage              = {},
         .focusedStage       = options.focusedStage,
         .carousel           = options.carousel,
+        .ribbon             = options.ribbon,
         .previewWorkspaceId = options.previewWorkspaceId,
     };
 
@@ -719,7 +814,7 @@ WorkspaceWallFrame WorkspaceWallLayout::compute(
     if (options.focusedStage)
         return computeFocusedFrame(state, monitor, renderSize, options, std::move(frame), workspaceById);
 
-    if (options.carousel) {
+    if (options.carousel || options.ribbon) {
         std::set<std::int64_t> ids;
         for (const auto& workspaceEntry : workspaceById)
             ids.insert(workspaceEntry.first);
@@ -740,6 +835,9 @@ WorkspaceWallFrame WorkspaceWallLayout::compute(
         ids.insert(createTargetId);
 
         const std::vector<std::int64_t> workspaceIds(ids.begin(), ids.end());
+        if (options.ribbon)
+            return computeRibbonFrame(
+                state, monitor, renderSize, options, std::move(frame), workspaceById, workspaceIds, createTargetId);
         return computeCarouselFrame(
             state, monitor, renderSize, options, std::move(frame), workspaceById, workspaceIds, createTargetId);
     }

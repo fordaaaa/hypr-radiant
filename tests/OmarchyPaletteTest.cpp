@@ -17,6 +17,7 @@ using hypr_radiant::loadOmarchyPalette;
 using hypr_radiant::OmarchyPalette;
 using hypr_radiant::omarchyPalettePath;
 using hypr_radiant::parseOmarchyPalette;
+using hypr_radiant::themePreviewColors;
 
 constexpr std::string_view OSAKA_JADE = R"(accent = "#509475"
 cursor = "#D7C995"
@@ -97,6 +98,19 @@ void preservesAlphaAndClampsLift() {
     assert(near(lifted.alpha, palette.background.alpha));
     // A lift beyond 1.0 clamps to the target end rather than overshooting.
     assert(lifted.red <= 1.0F && lifted.red >= 0.999F);
+}
+
+void themePreviewUsesOnlyThemePaletteColors() {
+    const auto palette = parseOmarchyPalette(
+        "background = \"#102030\"\nforeground = \"#d0e0f0\"\naccent = \"#a040c0\"\n");
+    const auto preview = themePreviewColors(palette);
+
+    assert(near(preview[0].red, palette.background.red));
+    assert(near(preview[0].green, palette.background.green));
+    assert(near(preview[1].red, palette.foreground.red));
+    assert(near(preview[1].blue, palette.foreground.blue));
+    assert(near(preview[2].red, palette.accent.red));
+    assert(near(preview[2].blue, palette.accent.blue));
 }
 
 void pointsAtQuattroStateDirectory() {
@@ -183,6 +197,7 @@ int main() {
     detectsLightAndDarkThemes();
     liftsAwayFromTheBackgroundInBothDirections();
     preservesAlphaAndClampsLift();
+    themePreviewUsesOnlyThemePaletteColors();
     pointsAtQuattroStateDirectory();
     discoversAndLoadsInstalledThemes();
     return 0;

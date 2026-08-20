@@ -226,7 +226,6 @@ if hl.plugin.radiant then
                 opacity = 0.94,
                 animation_duration = 180,
                 layout = "stage",
-                accent_color = "auto",
                 background_color = "auto",
                 foreground_color = "auto",
                 font_family = "JetBrainsMono Nerd Font",
@@ -248,7 +247,6 @@ plugin {
         opacity = 0.94
         animation_duration = 180
         layout = stage
-        accent_color = auto
         background_color = auto
         foreground_color = auto
         font_family = JetBrainsMono Nerd Font
@@ -264,8 +262,7 @@ plugin {
 | --- | --- |
 | `opacity` | Overlay opacity, `0.0` to `1.0` |
 | `animation_duration` | Fade duration in ms, `0` to `2000` |
-| `layout` | `stage`, `workspace_wall`, or `carousel` |
-| `accent_color` | `auto` follows the Omarchy theme; or `#RRGGBB`, `#RRGGBBAA`, `rgb()`, `rgba()` |
+| `layout` | `stage`, `workspace_wall`, `carousel`, or `ribbon` |
 | `background_color`, `foreground_color` | `auto` follows the Omarchy theme, or set them yourself |
 | `font_family` | Interface font |
 | `shortcut_enabled` | Register `SUPER+A` when it is not already bound |
@@ -273,18 +270,19 @@ plugin {
 | `gesture_fingers` | `3` or `4` |
 | `gesture_distance` | Swipe travel in pixels, `120` to `800` |
 
-If no Omarchy theme can be read, the colours fall back to a neutral grey. The
-palette is re-read every time the overview or preferences open, so switching
-themes does not need a reload. Installed themes are discovered from Omarchy's
-stock and user theme directories.
+Radiant's accent always follows the selected Omarchy theme. If no Omarchy theme
+can be read, the colours fall back to a neutral grey. The palette is re-read
+every time the overview or preferences open, so switching themes does not need
+a reload. Installed themes are discovered from Omarchy's stock and user theme
+directories.
 
-The settings panel starts by following these Hyprland values. Choosing Stage or
-Wall or Carousel saves that view as the preference; `THEME` returns the accent to
-its Hyprland/Omarchy-backed value. Default preserves the existing smooth motion.
-Snap punches cards forward from depth, Glitch arrives in staggered digital cuts,
-Lightcycle sweeps cards horizontally like a signal, and Silk uses a slower floating
-settle across Stage, Wall, and Carousel. Reduced caps transitions at 90 ms, while Off
-makes them immediate. The old
+The settings panel starts by following these Hyprland values. Choosing Stage,
+Wall, Carousel, or Ribbon saves that view as the preference. `CURRENT` follows
+Omarchy's active theme; choosing an installed theme applies its palette to
+Radiant. Default preserves the existing smooth motion. Snap punches cards
+forward from depth, Glitch arrives in staggered digital cuts, Lightcycle sweeps
+cards horizontally like a signal, and Silk uses a slower floating settle across
+every layout. Reduced caps transitions at 90 ms, while Off makes them immediate. The old
 `quattro`, `cyberpunk`, `tron`, and `elegant` saved values remain compatible.
 
 ## Building it yourself

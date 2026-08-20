@@ -523,6 +523,39 @@ void carouselShowsOnlyRealWorkspacesAndOneCreateTarget() {
     }));
 }
 
+void ribbonMatchesTheOmarchyPickerHierarchy() {
+    RadiantState state;
+    state.monitors.push_back({.id = 1, .name = "DP-1", .geometry = {.size = {.width = 1920, .height = 1080}}, .activeWorkspaceId = 3});
+    for (std::int64_t id = 1; id <= 5; ++id)
+        state.workspaces.push_back({.id = id, .name = std::to_string(id), .monitorId = 1});
+
+    auto options = WorkspaceWallOptions{};
+    options.minimumWorkspaceSlots = 0;
+    options.ribbon                = true;
+    options.previewWorkspaceId    = 3;
+    const auto frame = WorkspaceWallLayout{}.compute(
+        state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.carousel);
+    assert(frame.ribbon);
+    assert(frame.previewWorkspaceId == 3);
+    assert(frame.workspaces.size() == 6);
+    const auto& selected = frame.workspaces.at(2);
+    assert(std::abs(selected.rect.width - 768.0) < 0.5);
+    assert(std::abs(selected.rect.x + selected.rect.width / 2.0 - 960.0) < 0.5);
+    for (std::size_t index = 0; index < frame.workspaces.size(); ++index) {
+        if (index == 2)
+            continue;
+        assert(std::abs(frame.workspaces.at(index).rect.width - 108.0) < 0.5);
+        assert(frame.workspaces.at(index).rect.height < selected.rect.height);
+    }
+    // Consecutive slices overlap by the chooser's 30px rhythm, while neither side covers the hero.
+    assert(frame.workspaces.at(0).rect.x + frame.workspaces.at(0).rect.width > frame.workspaces.at(1).rect.x);
+    assert(frame.workspaces.at(1).rect.x + frame.workspaces.at(1).rect.width < selected.rect.x);
+    assert(frame.workspaces.at(3).rect.x > selected.rect.x + selected.rect.width);
+    assert(frame.workspaces.back().createTarget);
+}
+
 void deckArrangementBuildsAHeroAndSupportingColumn() {
     auto state = sampleState();
     state.windows.push_back({.stableId = 11, .title = "Browser", .className = "Firefox", .geometry = {.position = {.x = 980, .y = 40}, .size = {.width = 840, .height = 720}}, .workspaceId = 2, .monitorId = 1, .mapped = true});
@@ -567,6 +600,7 @@ int main() {
     newWorkspaceTargetAvoidsOtherMonitorIds();
     carouselCentersThePreviewAndShowsReadableSideColumns();
     carouselShowsOnlyRealWorkspacesAndOneCreateTarget();
+    ribbonMatchesTheOmarchyPickerHierarchy();
     deckArrangementBuildsAHeroAndSupportingColumn();
     std::cout << "WorkspaceWallLayoutTest passed\n";
     return 0;

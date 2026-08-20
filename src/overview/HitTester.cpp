@@ -112,6 +112,10 @@ OverviewTarget HitTester::hitTest(const WorkspaceWallFrame& frame, double x, dou
     }
 
     for (const auto& workspace : frame.workspaces) {
+        // Ribbon blades behave like Omarchy theme-picker slices: clicking one promotes the whole
+        // workspace into the center. Only the expanded workspace exposes individual windows.
+        if (frame.ribbon && workspace.workspaceId != frame.previewWorkspaceId)
+            continue;
         for (const auto& window : workspace.windows) {
             if (contains(window.rect, x, y))
                 return {.type = OverviewTargetType::Window, .workspaceId = window.workspaceId, .windowId = window.stableId, .monitorId = frame.monitorId};

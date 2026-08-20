@@ -1407,15 +1407,13 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
     const auto headingY = titleY + (1.0 - entrance) * 10.0;
     if (frame.carousel) {
         const auto slotCount = frame.workspaces.empty() ? 0 : frame.workspaces.size() - 1;
-        const auto hudWidth  = std::min(frame.bounds.width * 0.56, 620.0);
+        const auto hudWidth  = std::min(frame.bounds.width * 0.58, 620.0);
         drawRect(CBox{titleX, headingY + 8.0, 7.0, 7.0}, withAlpha(accentLit, headingAlpha * 0.94), damage, 1);
         drawRect(CBox{titleX + 12.0, headingY + 10.0, 3.0, 3.0}, withAlpha(accent, headingAlpha * 0.48), damage, 1);
-        m_labels.renderColored("WS.MATRIX", titleX + 24.0, headingY,
-            112.0, Theme::labelSize(), accentLit, headingAlpha, damage);
-        drawRect(CBox{titleX + 132.0, headingY + 11.0, std::max(1.0, hudWidth - 262.0), 1.0},
+        drawRect(CBox{titleX + 24.0, headingY + 11.0, std::max(1.0, hudWidth - 112.0), 1.0},
             withAlpha(accent, headingAlpha * 0.30), damage, 1);
-        m_labels.renderColored(std::format("{:02} SLOTS // +1", slotCount), titleX + hudWidth - 122.0, headingY + 1.0,
-            122.0, Theme::badgeSize(), foreground, headingAlpha * 0.62, damage);
+        m_labels.renderColored(std::format("{:02} // +", slotCount), titleX + hudWidth - 76.0, headingY + 1.0,
+            76.0, Theme::badgeSize(), foreground, headingAlpha * 0.62, damage);
     } else {
         m_labels.renderColored("WORKSPACES", titleX, headingY, std::max(1.0, frame.bounds.width * 0.45),
             Theme::titleSize(), accentLit, headingAlpha, damage);
@@ -1534,14 +1532,14 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             damage);
 
         if (carouselFocused) {
-            const auto status = workspace.active ? "ACTIVE // FOCUS" : "PREVIEW // FOCUS";
+            const auto status = workspace.active ? "ACTIVE" : "PREVIEW";
             const auto statusWidth = std::min(154.0, std::max(1.0, workspaceBox.w * 0.26));
             m_labels.renderColored(status, workspaceBox.x + workspaceBox.w - statusWidth - 15.0,
                 workspaceBox.y + 11.0, statusWidth, Theme::badgeSize(), accentLit, detailAlpha * 0.86, damage);
         }
 
         if (workspace.empty) {
-            const auto emptyLabel = workspace.createTarget ? "NEW WORKSPACE" : "EMPTY // READY";
+            const auto emptyLabel = workspace.createTarget ? "CREATE" : "EMPTY";
             const auto markerSize = carouselFocused ? 42.0 : compact ? 20.0 : 30.0;
             const auto centerX = workspaceBox.x + workspaceBox.w / 2.0;
             const auto centerY = workspaceBox.y + headerHeight + (workspaceBox.h - headerHeight) * 0.45;

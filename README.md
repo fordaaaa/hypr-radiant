@@ -174,7 +174,7 @@ Workspace Wall shows all workspaces at once as a grid of cards:
 ![The Workspace Wall view](assets/workspaces.webp)
 
 Workspace Carousel borrows Quattro's visual theme/background picker: the selected
-workspace becomes a full semantic preview above a readable rail of every empty or
+workspace stays centered between readable 16:9 side previews for every empty or
 occupied slot, followed by one explicit new-workspace target.
 
 Deck arrangement gives the first window a large hero position and packs the rest

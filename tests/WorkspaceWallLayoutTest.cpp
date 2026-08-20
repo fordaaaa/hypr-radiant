@@ -463,7 +463,7 @@ void newWorkspaceTargetAvoidsOtherMonitorIds() {
     assert(frame.workspaces.back().workspaceId == 8);
 }
 
-void carouselCentersThePreviewAndShowsReadableWorkspaceRail() {
+void carouselCentersThePreviewAndShowsReadableSideColumns() {
     const auto state = sampleState();
     auto options = WorkspaceWallOptions{};
     options.minimumWorkspaceSlots = 5;
@@ -480,11 +480,18 @@ void carouselCentersThePreviewAndShowsReadableWorkspaceRail() {
     const auto& next = frame.workspaces.at(2);
     assert(selected.rect.width > previous.rect.width * 3.0);
     assert(selected.rect.width > next.rect.width * 3.0);
-    assert(previous.rect.width > 180.0);
+    assert(previous.rect.width > 220.0);
     assert(next.rect.width == previous.rect.width);
+    assert(std::abs(previous.rect.width / previous.rect.height - 1920.0 / 1080.0) < 0.01);
     assert(std::abs(selected.rect.x + selected.rect.width / 2.0 - 960.0) < 0.5);
-    assert(previous.rect.y > selected.rect.y + selected.rect.height);
-    assert(next.rect.y == previous.rect.y);
+    assert(previous.rect.x + previous.rect.width < selected.rect.x);
+    assert(next.rect.x > selected.rect.x + selected.rect.width);
+    for (const auto& workspace : frame.workspaces) {
+        assert(workspace.rect.x >= 0.0);
+        assert(workspace.rect.y >= 0.0);
+        assert(workspace.rect.x + workspace.rect.width <= 1920.0);
+        assert(workspace.rect.y + workspace.rect.height <= 1080.0);
+    }
     assert(!selected.windows.empty());
     assert(selected.windows.front().rect.x >= selected.rect.x);
     assert(selected.windows.front().rect.x + selected.windows.front().rect.width <= selected.rect.x + selected.rect.width);
@@ -537,7 +544,7 @@ int main() {
     groupedModeOrdersApplicationsAndMarksHeaders();
     appExposeFiltersAcrossLocalWorkspaces();
     newWorkspaceTargetAvoidsOtherMonitorIds();
-    carouselCentersThePreviewAndShowsReadableWorkspaceRail();
+    carouselCentersThePreviewAndShowsReadableSideColumns();
     deckArrangementBuildsAHeroAndSupportingColumn();
     std::cout << "WorkspaceWallLayoutTest passed\n";
     return 0;

@@ -189,8 +189,9 @@ WorkspaceWallFrame computeCarouselFrame(
     const RadiantState& state, const MonitorSnapshot& monitor, const RadiantSize& renderSize, const WorkspaceWallOptions& options,
     WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById,
     const std::vector<std::int64_t>& workspaceIds, std::int64_t createTargetId) {
-    // Keep Quattro's large selected preview, but give every other workspace a real thumbnail rail.
-    // The former narrow slices obscured window contents and made empty workspaces look absent.
+    // Keep Quattro's original centered carousel grammar, but use complete 16:9 side previews rather
+    // than narrow blades. Adaptive left/right columns keep every slot visible without turning the
+    // focused workspace into a separate lower-rail layout.
     frame = computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, workspaceIds, createTargetId);
     frame.carousel = true;
 
@@ -205,38 +206,45 @@ WorkspaceWallFrame computeCarouselFrame(
         return frame;
 
     frame.previewWorkspaceId = selected->workspaceId;
+    const auto selectedIndex = static_cast<std::size_t>(std::distance(frame.workspaces.begin(), selected));
     const auto aspect = monitor.geometry.size.height > 0.0 ?
         std::max(0.2, monitor.geometry.size.width / monitor.geometry.size.height) :
         std::max(0.2, renderSize.width / std::max(1.0, renderSize.height));
-    const auto centerHeight = std::min(renderSize.height * 0.50, (renderSize.width * 0.56) / aspect);
+    const auto centerHeight = std::min(renderSize.height * 0.60, (renderSize.width * 0.58) / aspect);
     const auto centerWidth  = centerHeight * aspect;
-    const auto centerY      = std::clamp(renderSize.height * 0.10, 54.0, 112.0);
     const LayoutRect center{
         .x = centered(renderSize.width, centerWidth),
-        .y = centerY,
+        .y = centered(renderSize.height, centerHeight),
         .width = centerWidth,
         .height = centerHeight,
     };
 
-    const auto thumbnailCount = frame.workspaces.size() > 1 ? frame.workspaces.size() - 1 : 0;
-    const auto edgePadding    = std::clamp(renderSize.width * 0.045, 36.0, 92.0);
-    const auto thumbnailGap   = std::clamp(renderSize.width * 0.008, 10.0, 18.0);
-    const auto railWidth      = std::max(1.0, renderSize.width - edgePadding * 2.0);
-    const auto rawThumbnailWidth = thumbnailCount == 0 ? 0.0 :
-        std::max(1.0, (railWidth - thumbnailGap * static_cast<double>(thumbnailCount - 1)) / static_cast<double>(thumbnailCount));
-    const auto thumbnailWidth  = std::min(centerWidth * 0.28, rawThumbnailWidth);
-    const auto thumbnailHeight = thumbnailWidth / aspect;
-    const auto packedWidth     = thumbnailWidth * static_cast<double>(thumbnailCount) +
-        thumbnailGap * static_cast<double>(thumbnailCount > 0 ? thumbnailCount - 1 : 0);
-    const auto railX = centered(renderSize.width, packedWidth);
-    const auto railY = std::min(
-        std::max(0.0, renderSize.height - thumbnailHeight - 70.0), center.y + center.height + std::clamp(renderSize.height * 0.035, 24.0, 40.0));
+    const auto leftCount  = selectedIndex;
+    const auto rightCount = frame.workspaces.size() - selectedIndex - 1;
+    const auto maxSideCount = std::max(leftCount, rightCount);
+    const auto edgePadding = std::clamp(renderSize.width * 0.035, 28.0, 68.0);
+    const auto columnGap   = std::clamp(renderSize.width * 0.010, 12.0, 20.0);
+    const auto rowGap      = std::clamp(renderSize.height * 0.012, 8.0, 14.0);
+    const auto sideWidth   = std::max(1.0, center.x - edgePadding - columnGap);
+    const auto preferredThumbnailWidth = std::min(sideWidth, std::clamp(renderSize.width * 0.15, 190.0, 290.0));
+    const auto preferredThumbnailHeight = preferredThumbnailWidth / aspect;
+    const auto fittedThumbnailHeight = maxSideCount == 0 ? preferredThumbnailHeight :
+        std::max(1.0, (center.height - rowGap * static_cast<double>(maxSideCount - 1)) / static_cast<double>(maxSideCount));
+    const auto thumbnailHeight = std::min(preferredThumbnailHeight, fittedThumbnailHeight);
+    const auto thumbnailWidth  = thumbnailHeight * aspect;
+    const auto packedHeight = [](std::size_t count, double height, double gap) {
+        return count == 0 ? 0.0 : height * static_cast<double>(count) + gap * static_cast<double>(count - 1);
+    };
+    const auto leftY  = center.y + centered(center.height, packedHeight(leftCount, thumbnailHeight, rowGap));
+    const auto rightY = center.y + centered(center.height, packedHeight(rightCount, thumbnailHeight, rowGap));
+    const auto leftX  = center.x - columnGap - thumbnailWidth;
+    const auto rightX = center.x + center.width + columnGap;
     frame.rail = {
         .bounds = {
-            .x = railX - 12.0,
-            .y = railY - 12.0,
-            .width = packedWidth + 24.0,
-            .height = thumbnailHeight + 24.0,
+            .x = std::max(0.0, leftX - 10.0),
+            .y = std::max(0.0, center.y - 10.0),
+            .width = std::min(renderSize.width, rightX + thumbnailWidth + 10.0) - std::max(0.0, leftX - 10.0),
+            .height = std::min(renderSize.height, center.y + center.height + 10.0) - std::max(0.0, center.y - 10.0),
         },
     };
 
@@ -251,19 +259,29 @@ WorkspaceWallFrame computeCarouselFrame(
         };
     };
 
-    std::size_t thumbnailIndex = 0;
-    for (auto& workspace : frame.workspaces) {
+    std::size_t leftIndex  = 0;
+    std::size_t rightIndex = 0;
+    for (std::size_t index = 0; index < frame.workspaces.size(); ++index) {
+        auto& workspace = frame.workspaces[index];
         const auto oldRect = workspace.rect;
         if (workspace.workspaceId == selected->workspaceId) {
             workspace.rect = center;
-        } else {
+        } else if (index < selectedIndex) {
             workspace.rect = {
-                .x = railX + static_cast<double>(thumbnailIndex) * (thumbnailWidth + thumbnailGap),
-                .y = railY,
+                .x = leftX,
+                .y = leftY + static_cast<double>(leftIndex) * (thumbnailHeight + rowGap),
                 .width = thumbnailWidth,
                 .height = thumbnailHeight,
             };
-            ++thumbnailIndex;
+            ++leftIndex;
+        } else {
+            workspace.rect = {
+                .x = rightX,
+                .y = rightY + static_cast<double>(rightIndex) * (thumbnailHeight + rowGap),
+                .width = thumbnailWidth,
+                .height = thumbnailHeight,
+            };
+            ++rightIndex;
         }
 
         for (auto& window : workspace.windows)

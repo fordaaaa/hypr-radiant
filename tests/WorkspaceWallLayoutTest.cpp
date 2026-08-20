@@ -463,27 +463,36 @@ void newWorkspaceTargetAvoidsOtherMonitorIds() {
     assert(frame.workspaces.back().workspaceId == 8);
 }
 
-void carouselCentersThePreviewAndSlicesItsNeighbours() {
+void carouselCentersThePreviewAndShowsReadableWorkspaceRail() {
     const auto state = sampleState();
     auto options = WorkspaceWallOptions{};
-    options.carousel           = true;
-    options.previewWorkspaceId = 2;
+    options.minimumWorkspaceSlots = 5;
+    options.carousel              = true;
+    options.previewWorkspaceId    = 2;
 
     const auto frame = WorkspaceWallLayout{}.compute(state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
 
     assert(frame.carousel);
     assert(frame.previewWorkspaceId == 2);
+    assert(frame.workspaces.size() == 6);
     const auto& previous = frame.workspaces.at(0);
     const auto& selected = frame.workspaces.at(1);
     const auto& next = frame.workspaces.at(2);
-    assert(selected.rect.width > previous.rect.width * 5.0);
-    assert(selected.rect.width > next.rect.width * 5.0);
+    assert(selected.rect.width > previous.rect.width * 3.0);
+    assert(selected.rect.width > next.rect.width * 3.0);
+    assert(previous.rect.width > 180.0);
+    assert(next.rect.width == previous.rect.width);
     assert(std::abs(selected.rect.x + selected.rect.width / 2.0 - 960.0) < 0.5);
-    assert(previous.rect.x + previous.rect.width < selected.rect.x);
-    assert(next.rect.x > selected.rect.x + selected.rect.width);
+    assert(previous.rect.y > selected.rect.y + selected.rect.height);
+    assert(next.rect.y == previous.rect.y);
     assert(!selected.windows.empty());
     assert(selected.windows.front().rect.x >= selected.rect.x);
     assert(selected.windows.front().rect.x + selected.windows.front().rect.width <= selected.rect.x + selected.rect.width);
+    assert(frame.workspaces.at(4).workspaceId == 5);
+    assert(frame.workspaces.at(4).empty);
+    assert(frame.workspaces.back().workspaceId == 6);
+    assert(frame.workspaces.back().createTarget);
+    assert(frame.workspaces.back().empty);
 }
 
 void deckArrangementBuildsAHeroAndSupportingColumn() {
@@ -528,7 +537,7 @@ int main() {
     groupedModeOrdersApplicationsAndMarksHeaders();
     appExposeFiltersAcrossLocalWorkspaces();
     newWorkspaceTargetAvoidsOtherMonitorIds();
-    carouselCentersThePreviewAndSlicesItsNeighbours();
+    carouselCentersThePreviewAndShowsReadableWorkspaceRail();
     deckArrangementBuildsAHeroAndSupportingColumn();
     std::cout << "WorkspaceWallLayoutTest passed\n";
     return 0;

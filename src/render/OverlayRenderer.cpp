@@ -284,7 +284,7 @@ WorkspaceWallOptions layoutOptionsFor(LayoutMode mode, std::int64_t previewWorks
 
     if (mode == LayoutMode::Carousel) {
         return WorkspaceWallOptions{
-            .minimumWorkspaceSlots = 6,
+            .minimumWorkspaceSlots = 5,
             .outerPadding          = 112.0,
             .cardGap               = 24.0,
             .windowGap             = 10.0,
@@ -1391,13 +1391,35 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         hasContent    = true;
     }
 
+    if (frame.carousel) {
+        const auto focusedWorkspace = std::ranges::find_if(frame.workspaces, [&frame](const WorkspaceCard& workspace) {
+            return workspace.workspaceId == frame.previewWorkspaceId;
+        });
+        if (focusedWorkspace != frame.workspaces.end()) {
+            contentLeft = focusedWorkspace->rect.x;
+            contentTop  = focusedWorkspace->rect.y;
+        }
+    }
+
     const auto titleX = hasContent ? std::max(38.0, contentLeft) : 46.0;
     const auto titleY = hasContent ? std::max(30.0, contentTop - 58.0) : 30.0;
 
     const auto headingY = titleY + (1.0 - entrance) * 10.0;
-    m_labels.renderColored(frame.carousel ? "QUATTRO // WORKSPACES" : "WORKSPACES", titleX, headingY,
-        std::max(1.0, frame.bounds.width * 0.45),
-        Theme::titleSize(), accentLit, headingAlpha, damage);
+    if (frame.carousel) {
+        const auto slotCount = frame.workspaces.empty() ? 0 : frame.workspaces.size() - 1;
+        const auto hudWidth  = std::min(frame.bounds.width * 0.56, 620.0);
+        drawRect(CBox{titleX, headingY + 8.0, 7.0, 7.0}, withAlpha(accentLit, headingAlpha * 0.94), damage, 1);
+        drawRect(CBox{titleX + 12.0, headingY + 10.0, 3.0, 3.0}, withAlpha(accent, headingAlpha * 0.48), damage, 1);
+        m_labels.renderColored("WS.MATRIX", titleX + 24.0, headingY,
+            112.0, Theme::labelSize(), accentLit, headingAlpha, damage);
+        drawRect(CBox{titleX + 132.0, headingY + 11.0, std::max(1.0, hudWidth - 262.0), 1.0},
+            withAlpha(accent, headingAlpha * 0.30), damage, 1);
+        m_labels.renderColored(std::format("{:02} SLOTS // +1", slotCount), titleX + hudWidth - 122.0, headingY + 1.0,
+            122.0, Theme::badgeSize(), foreground, headingAlpha * 0.62, damage);
+    } else {
+        m_labels.renderColored("WORKSPACES", titleX, headingY, std::max(1.0, frame.bounds.width * 0.45),
+            Theme::titleSize(), accentLit, headingAlpha, damage);
+    }
 
     const WorkspaceWallFrame* previousCarouselFrame = nullptr;
     if (frame.carousel) {
@@ -1414,8 +1436,10 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             m_selectedTarget.workspaceId == workspace.workspaceId;
         const auto workspaceSelected = ownsSelection &&
             sameTarget(m_selectedTarget, {.type = OverviewTargetType::Workspace, .workspaceId = workspace.workspaceId});
-        const auto carouselSlice = frame.carousel && workspace.workspaceId != frame.previewWorkspaceId;
-        const auto compact      = workspace.rect.width <= 140.0 || workspace.rect.height <= 120.0;
+        const auto carouselFocused = frame.carousel && workspace.workspaceId == frame.previewWorkspaceId;
+        const auto carouselThumbnail = frame.carousel && !carouselFocused;
+        const auto compact = carouselThumbnail ? workspace.rect.width <= 110.0 || workspace.rect.height <= 70.0 :
+                                                  workspace.rect.width <= 140.0 || workspace.rect.height <= 120.0;
         const auto round        = compact ? 14 : 18;
         const auto stagger      = frame.workspaces.size() <= 1 ? 0.0 :
             static_cast<double>(workspaceIndex) / static_cast<double>(frame.workspaces.size() - 1) * 0.13;
@@ -1439,12 +1463,12 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             -std::lerp(0.0, workspaceSelected ? 7.0 : 3.0, hoverLift) - 6.0 * drop);
         displayRect.y += (1.0 - cardEntrance) * (frame.carousel ? 12.0 : 28.0 + static_cast<double>(workspaceIndex % 3) * 7.0);
         const auto workspaceBox = boxFor(displayRect);
-        const auto cardAlpha    = contentAlpha * cardEntrance * (carouselSlice ? 0.66 : 1.0);
+        const auto cardAlpha    = contentAlpha * cardEntrance * (carouselThumbnail ? 0.88 : 1.0);
         const auto detailAlpha  = cardAlpha * typographyFade;
 
-        if ((ownsSelection || workspace.active) && !compact) {
-            const auto glowStrength = workspaceSelected ? 0.075 * selection : workspace.active ? 0.032 : 0.02 * selection;
-            const auto spread       = workspaceSelected ? 11.0 : 7.0;
+        if ((ownsSelection || workspace.active || carouselFocused) && !compact) {
+            const auto glowStrength = carouselFocused ? 0.065 : workspaceSelected ? 0.075 * selection : workspace.active ? 0.032 : 0.02 * selection;
+            const auto spread       = carouselFocused ? 10.0 : workspaceSelected ? 11.0 : 7.0;
             const auto glowBox = CBox{
                 workspaceBox.x - spread,
                 workspaceBox.y - spread,
@@ -1458,11 +1482,12 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         drawRect(CBox{workspaceBox.x + 5.0, workspaceBox.y + 7.0 + shadowLift * 0.30, workspaceBox.w, workspaceBox.h},
             withAlpha(Theme::shadowColor(), cardAlpha * (0.34 + hoverLift * 0.12)), damage, round + 2);
 
-        const auto surfaceLift = workspace.empty ? 0.085F :
-            workspaceSelected ? static_cast<float>(0.145 + selection * 0.035) : workspace.active ? 0.13F : ownsSelection ? 0.125F : 0.105F;
-        auto cardSurface = surfaceColor(surfaceLift, cardAlpha * (workspace.empty ? 0.58 : 0.70));
+        const auto surfaceLift = workspace.createTarget ? 0.075F : workspace.empty ? 0.085F :
+            carouselFocused ? 0.155F : workspaceSelected ? static_cast<float>(0.145 + selection * 0.035) :
+            workspace.active ? 0.13F : ownsSelection ? 0.125F : 0.105F;
+        auto cardSurface = surfaceColor(surfaceLift, cardAlpha * (workspace.empty ? 0.64 : 0.74));
         cardSurface = tintedSurface(cardSurface, accent,
-            workspaceSelected ? 0.14 + selection * 0.08 : workspace.active ? 0.11 : ownsSelection ? 0.10 : 0.045);
+            carouselFocused ? 0.16 : workspaceSelected ? 0.14 + selection * 0.08 : workspace.active ? 0.11 : ownsSelection ? 0.10 : 0.045);
         if (drop > 0.001)
             cardSurface = tintedSurface(cardSurface, accent, 0.22 * drop);
         drawRect(workspaceBox, cardSurface, damage, round, true);
@@ -1470,6 +1495,12 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         // Hairlines establish the card edge; state is carried by a short coloured rail instead of
         // a thick neon frame. Window hover intentionally does not outline its whole workspace.
         drawBorder(workspaceBox, withAlpha(foreground, cardAlpha * 0.065), round, 1);
+        if (carouselFocused) {
+            drawBorder(workspaceBox, withAlpha(accentLit, cardAlpha * 0.62), withAlpha(accent, cardAlpha * 0.18),
+                2.62F, static_cast<float>(cardAlpha * 0.76), round, 2);
+            drawRect(CBox{workspaceBox.x + 18.0, workspaceBox.y, std::min(112.0, workspaceBox.w * 0.24), 2.0},
+                withAlpha(accentLit, cardAlpha * 0.92), damage, 1);
+        }
         if (workspace.active) {
             const auto railWidth = std::min(48.0, workspaceBox.w * 0.18);
             drawRect(CBox{workspaceBox.x + 16.0, workspaceBox.y, railWidth, 1.0},
@@ -1485,16 +1516,46 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             drawBorder(insetBox(workspaceBox, 7.0), withAlpha(accent, cardAlpha * 0.26 * drop), std::max(1, round - 5), 1);
         }
 
-        const auto headerHeight = compact ? 28.0 : std::clamp(workspaceBox.h * 0.12, 34.0, 42.0);
+        const auto headerHeight = compact ? 26.0 : carouselFocused ? std::clamp(workspaceBox.h * 0.105, 40.0, 52.0) :
+                                                                  std::clamp(workspaceBox.h * 0.18, 30.0, 38.0);
         drawRect(CBox{workspaceBox.x + 14.0, workspaceBox.y + headerHeight, std::max(0.0, workspaceBox.w - 28.0), 1.0},
-            withAlpha(ownsSelection ? accent : foreground, cardAlpha * (ownsSelection ? 0.12 : 0.055)), damage);
+            withAlpha(carouselFocused || ownsSelection ? accent : foreground,
+                cardAlpha * (carouselFocused ? 0.22 : ownsSelection ? 0.12
+                                                                    : 0.075)),
+            damage);
         const auto workspaceCode = std::format("{:02}", workspace.workspaceId);
-        const auto workspaceLabel = workspace.name.empty() || workspace.name == std::to_string(workspace.workspaceId) ?
-            workspaceCode : workspace.name;
+        const auto workspaceLabel = workspace.createTarget ? std::string{"+"} :
+            workspace.name.empty() || workspace.name == std::to_string(workspace.workspaceId) ? workspaceCode : workspace.name;
         m_labels.renderColored(workspaceLabel, workspaceBox.x + (compact ? 10.0 : 15.0),
             workspaceBox.y + (compact ? 7.0 : 9.0), std::max(1.0, workspaceBox.w - (compact ? 20.0 : 30.0)),
-            compact ? Theme::hintSize() : Theme::labelSize(), ownsSelection ? accentLit : foreground,
-            detailAlpha * (ownsSelection ? 0.96 : 0.72), damage);
+            compact ? Theme::hintSize() : Theme::labelSize(), carouselFocused || ownsSelection ? accentLit : foreground,
+            detailAlpha * (carouselFocused ? 1.0 : ownsSelection ? 0.96
+                                                                 : 0.82),
+            damage);
+
+        if (carouselFocused) {
+            const auto status = workspace.active ? "ACTIVE // FOCUS" : "PREVIEW // FOCUS";
+            const auto statusWidth = std::min(154.0, std::max(1.0, workspaceBox.w * 0.26));
+            m_labels.renderColored(status, workspaceBox.x + workspaceBox.w - statusWidth - 15.0,
+                workspaceBox.y + 11.0, statusWidth, Theme::badgeSize(), accentLit, detailAlpha * 0.86, damage);
+        }
+
+        if (workspace.empty) {
+            const auto emptyLabel = workspace.createTarget ? "NEW WORKSPACE" : "EMPTY // READY";
+            const auto markerSize = carouselFocused ? 42.0 : compact ? 20.0 : 30.0;
+            const auto centerX = workspaceBox.x + workspaceBox.w / 2.0;
+            const auto centerY = workspaceBox.y + headerHeight + (workspaceBox.h - headerHeight) * 0.45;
+            drawRect(CBox{centerX - markerSize / 2.0, centerY, markerSize, 1.0},
+                withAlpha(workspace.createTarget ? accentLit : foreground, cardAlpha * (workspace.createTarget ? 0.58 : 0.16)), damage, 1);
+            drawRect(CBox{centerX, centerY - markerSize / 2.0, 1.0, markerSize},
+                withAlpha(workspace.createTarget ? accentLit : foreground, cardAlpha * (workspace.createTarget ? 0.58 : 0.16)), damage, 1);
+            if (!compact) {
+                m_labels.renderCentered(emptyLabel,
+                    CBox{workspaceBox.x + 10.0, centerY + markerSize / 2.0 + 8.0, std::max(1.0, workspaceBox.w - 20.0), 24.0},
+                    Theme::badgeSize(), workspace.createTarget ? accentLit : foreground,
+                    detailAlpha * (workspace.createTarget ? 0.88 : 0.42), damage);
+            }
+        }
 
         for (const auto& window : workspace.windows) {
             const auto windowSelected = frame.monitorId == m_selectedFrameMonitorId && sameTarget(
@@ -1516,7 +1577,7 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
                 windowRect = scaledAroundCenter(windowRect, std::lerp(1.0, 0.972, pressDip), 1.5 * pressDip);
             const auto windowBox   = boxFor(windowRect);
             const auto windowRound = Theme::windowRadius();
-            const auto footerHeight = compact ? 0.0 : 28.0;
+            const auto footerHeight = compact || carouselThumbnail ? 0.0 : 28.0;
             const auto windowAlpha  = dragged ? cardAlpha * std::lerp(1.0, 0.16, dragLift) : cardAlpha;
             const auto windowDetail = dragged ? detailAlpha * std::lerp(1.0, 0.16, dragLift) : detailAlpha;
 
@@ -1530,7 +1591,16 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             windowSurface = tintedSurface(windowSurface, accent, windowSelected ? 0.18 * selection : 0.055);
             drawRect(windowBox, windowSurface, damage, windowRound);
 
-            if (!compact && windowBox.h > 88.0) {
+            if (carouselThumbnail && !compact && windowBox.h > 44.0) {
+                const auto previewShell = CBox{
+                    windowBox.x + 5.0,
+                    windowBox.y + 5.0,
+                    std::max(1.0, windowBox.w - 10.0),
+                    std::max(1.0, windowBox.h - 10.0),
+                };
+                drawRect(previewShell, surfaceColor(0.08F, windowAlpha * 0.92), damage, std::max(2, windowRound - 2));
+                renderWindowPreview(window, previewShell, windowAlpha, damage);
+            } else if (!compact && windowBox.h > 88.0) {
                 const auto previewShell = CBox{
                     windowBox.x + 7.0,
                     windowBox.y + 7.0,

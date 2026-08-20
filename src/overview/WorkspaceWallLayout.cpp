@@ -89,8 +89,9 @@ RadiantSize aspectFit(double sourceAspect, double availableWidth, double availab
 
 WorkspaceWallFrame computeGridFrame(
     const RadiantState& state, const MonitorSnapshot& monitor, const RadiantSize& renderSize, const WorkspaceWallOptions& options,
-    WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById, std::size_t count) {
-    const auto [cols, rows] = gridDims(count);
+    WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById,
+    const std::vector<std::int64_t>& workspaceIds, std::int64_t createTargetId = -1) {
+    const auto [cols, rows] = gridDims(workspaceIds.size());
 
     const auto gridWidth  = std::max(1.0, renderSize.width - options.outerPadding * 2.0);
     const auto gridHeight = std::max(1.0, renderSize.height - options.outerPadding * 2.0);
@@ -107,8 +108,9 @@ WorkspaceWallFrame computeGridFrame(
     const auto cardsX = options.outerPadding + centered(gridWidth, packedWidth);
     const auto cardsY = options.outerPadding + centered(gridHeight, packedHeight);
 
-    for (int id = 1; id <= static_cast<std::int64_t>(count); ++id) {
-        const auto index = id - 1;
+    for (std::size_t position = 0; position < workspaceIds.size(); ++position) {
+        const auto id    = workspaceIds[position];
+        const auto index = static_cast<int>(position);
         const auto row   = index / cols;
         const auto col   = index % cols;
 
@@ -127,6 +129,7 @@ WorkspaceWallFrame computeGridFrame(
             .windows = {},
             .active = monitor.activeWorkspaceId == id,
             .empty  = true,
+            .createTarget = id == createTargetId,
         };
 
         auto inner = inset(card.rect, options.windowInset);
@@ -184,11 +187,11 @@ WorkspaceWallFrame computeGridFrame(
 
 WorkspaceWallFrame computeCarouselFrame(
     const RadiantState& state, const MonitorSnapshot& monitor, const RadiantSize& renderSize, const WorkspaceWallOptions& options,
-    WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById, std::size_t count) {
-    // Quattro's theme/background selectors keep one full preview in the center and turn its
-    // neighbours into narrow, dimmable slices. Start with the normal wall so workspace/window
-    // membership stays identical, then reshape those cards into the same carousel grammar.
-    frame = computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, count);
+    WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById,
+    const std::vector<std::int64_t>& workspaceIds, std::int64_t createTargetId) {
+    // Keep Quattro's large selected preview, but give every other workspace a real thumbnail rail.
+    // The former narrow slices obscured window contents and made empty workspaces look absent.
+    frame = computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, workspaceIds, createTargetId);
     frame.carousel = true;
 
     const auto selectedId = options.previewWorkspaceId > 0 ? options.previewWorkspaceId :
@@ -202,20 +205,39 @@ WorkspaceWallFrame computeCarouselFrame(
         return frame;
 
     frame.previewWorkspaceId = selected->workspaceId;
-    const auto selectedIndex = static_cast<std::ptrdiff_t>(std::distance(frame.workspaces.begin(), selected));
     const auto aspect = monitor.geometry.size.height > 0.0 ?
         std::max(0.2, monitor.geometry.size.width / monitor.geometry.size.height) :
         std::max(0.2, renderSize.width / std::max(1.0, renderSize.height));
-    const auto centerHeight = std::min(renderSize.height * 0.62, (renderSize.width * 0.58) / aspect);
+    const auto centerHeight = std::min(renderSize.height * 0.50, (renderSize.width * 0.56) / aspect);
     const auto centerWidth  = centerHeight * aspect;
-    const auto sliceWidth   = std::clamp(renderSize.width * 0.055, 64.0, 108.0);
-    const auto sliceHeight  = centerHeight * 0.80;
-    const auto gap          = std::clamp(renderSize.width * 0.007, 10.0, 16.0);
+    const auto centerY      = std::clamp(renderSize.height * 0.10, 54.0, 112.0);
     const LayoutRect center{
         .x = centered(renderSize.width, centerWidth),
-        .y = centered(renderSize.height, centerHeight),
+        .y = centerY,
         .width = centerWidth,
         .height = centerHeight,
+    };
+
+    const auto thumbnailCount = frame.workspaces.size() > 1 ? frame.workspaces.size() - 1 : 0;
+    const auto edgePadding    = std::clamp(renderSize.width * 0.045, 36.0, 92.0);
+    const auto thumbnailGap   = std::clamp(renderSize.width * 0.008, 10.0, 18.0);
+    const auto railWidth      = std::max(1.0, renderSize.width - edgePadding * 2.0);
+    const auto rawThumbnailWidth = thumbnailCount == 0 ? 0.0 :
+        std::max(1.0, (railWidth - thumbnailGap * static_cast<double>(thumbnailCount - 1)) / static_cast<double>(thumbnailCount));
+    const auto thumbnailWidth  = std::min(centerWidth * 0.28, rawThumbnailWidth);
+    const auto thumbnailHeight = thumbnailWidth / aspect;
+    const auto packedWidth     = thumbnailWidth * static_cast<double>(thumbnailCount) +
+        thumbnailGap * static_cast<double>(thumbnailCount > 0 ? thumbnailCount - 1 : 0);
+    const auto railX = centered(renderSize.width, packedWidth);
+    const auto railY = std::min(
+        std::max(0.0, renderSize.height - thumbnailHeight - 70.0), center.y + center.height + std::clamp(renderSize.height * 0.035, 24.0, 40.0));
+    frame.rail = {
+        .bounds = {
+            .x = railX - 12.0,
+            .y = railY - 12.0,
+            .width = packedWidth + 24.0,
+            .height = thumbnailHeight + 24.0,
+        },
     };
 
     const auto remap = [](const LayoutRect& child, const LayoutRect& source, const LayoutRect& target) {
@@ -229,23 +251,19 @@ WorkspaceWallFrame computeCarouselFrame(
         };
     };
 
-    for (std::size_t index = 0; index < frame.workspaces.size(); ++index) {
-        auto& workspace = frame.workspaces[index];
+    std::size_t thumbnailIndex = 0;
+    for (auto& workspace : frame.workspaces) {
         const auto oldRect = workspace.rect;
-        const auto relative = static_cast<std::ptrdiff_t>(index) - selectedIndex;
-        if (relative == 0) {
+        if (workspace.workspaceId == selected->workspaceId) {
             workspace.rect = center;
         } else {
-            const auto distance = static_cast<double>(std::abs(relative));
-            const auto x = relative < 0 ?
-                center.x - gap - distance * sliceWidth - (distance - 1.0) * gap :
-                center.x + center.width + gap + (distance - 1.0) * (sliceWidth + gap);
             workspace.rect = {
-                .x = x,
-                .y = center.y + centered(center.height, sliceHeight) + std::min(42.0, (distance - 1.0) * 7.0),
-                .width = sliceWidth,
-                .height = sliceHeight,
+                .x = railX + static_cast<double>(thumbnailIndex) * (thumbnailWidth + thumbnailGap),
+                .y = railY,
+                .width = thumbnailWidth,
+                .height = thumbnailHeight,
             };
+            ++thumbnailIndex;
         }
 
         for (auto& window : workspace.windows)
@@ -680,15 +698,45 @@ WorkspaceWallFrame WorkspaceWallLayout::compute(
         maxWorkspaceId = std::max(maxWorkspaceId, std::min<std::int64_t>(workspace.id, maxFilledSlots));
     }
 
-    const auto count = static_cast<std::size_t>(maxWorkspaceId);
-
     if (options.focusedStage)
         return computeFocusedFrame(state, monitor, renderSize, options, std::move(frame), workspaceById);
 
-    if (options.carousel)
-        return computeCarouselFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, count);
+    if (options.carousel) {
+        std::set<std::int64_t> ids;
+        for (const auto& workspaceEntry : workspaceById)
+            ids.insert(workspaceEntry.first);
+        if (monitor.activeWorkspaceId > 0)
+            ids.insert(monitor.activeWorkspaceId);
 
-    return computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, count);
+        std::set<std::int64_t> ownedElsewhere;
+        std::int64_t globalMaxId = 0;
+        for (const auto& workspace : state.workspaces) {
+            if (!containsPositiveWorkspaceId(workspace))
+                continue;
+            globalMaxId = std::max(globalMaxId, workspace.id);
+            if (workspace.monitorId != monitor.id && workspace.monitorId != -1)
+                ownedElsewhere.insert(workspace.id);
+        }
+
+        const auto highestFilledSlot = std::min<std::int64_t>(maxWorkspaceId, maxFilledSlots);
+        for (std::int64_t id = 1; id <= highestFilledSlot; ++id) {
+            if (!ownedElsewhere.contains(id))
+                ids.insert(id);
+        }
+        const auto createTargetId = std::max(globalMaxId, highestFilledSlot) + 1;
+        ids.insert(createTargetId);
+
+        const std::vector<std::int64_t> workspaceIds(ids.begin(), ids.end());
+        return computeCarouselFrame(
+            state, monitor, renderSize, options, std::move(frame), workspaceById, workspaceIds, createTargetId);
+    }
+
+    std::vector<std::int64_t> workspaceIds;
+    workspaceIds.reserve(static_cast<std::size_t>(maxWorkspaceId));
+    for (std::int64_t id = 1; id <= maxWorkspaceId; ++id)
+        workspaceIds.push_back(id);
+
+    return computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, workspaceIds);
 }
 
 } // namespace hypr_radiant

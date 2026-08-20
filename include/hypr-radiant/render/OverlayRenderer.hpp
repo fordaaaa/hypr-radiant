@@ -41,7 +41,7 @@ struct PointerAction {
 
 class OverlayRenderer {
   public:
-    OverlayRenderer(const RadiantConfig& config, PreferencesStore& preferences);
+    OverlayRenderer(RadiantConfig& config, PreferencesStore& preferences);
 
     void install();
     void uninstall();
@@ -99,10 +99,12 @@ class OverlayRenderer {
     struct StageContext {
         double     contentAlpha;
         double     stageAlpha;
+        double     entranceTransition;
         double     selectionTransition;
-        CHyprColor accent;
-        CHyprColor stageSurface;
-        CHyprColor railSurface;
+        MotionPreference motion;
+        CHyprColor       accent;
+        CHyprColor       stageSurface;
+        CHyprColor       railSurface;
         LayoutRect displayedStageBounds;
         LayoutRect pushedStageBounds;
     };
@@ -129,9 +131,14 @@ class OverlayRenderer {
     [[nodiscard]] CHyprColor resolvedAccentColor() const;
     [[nodiscard]] LayoutMode effectiveLayoutMode() const;
     [[nodiscard]] int        effectiveAnimationDurationMs() const;
+    [[nodiscard]] AnimationCurve effectiveAnimationCurve() const;
+    void applyMotionProfile();
     [[nodiscard]] OverviewMode defaultOverviewMode() const;
+    [[nodiscard]] bool          pointerInsidePreferencesPanel(double x, double y) const;
     [[nodiscard]] PreferenceHit preferenceControlAt(double x, double y) const;
     [[nodiscard]] PointerAction applyPreference(PreferenceControl control, int value = -1, int step = 1);
+    [[nodiscard]] int selectedNativeThemeIndex() const noexcept;
+    [[nodiscard]] int nativeThemeOptionCount() const noexcept;
     void rebuildAfterPreferenceChange();
     /// Surface derived from the active theme background, stepped `lift` toward its contrasting
     /// end. Lightens on dark themes and darkens on light ones.
@@ -174,7 +181,7 @@ class OverlayRenderer {
         LayoutRect    to;
     };
 
-    const RadiantConfig&                                  m_config;
+    RadiantConfig&                                        m_config;
     PreferencesStore&                                     m_preferences;
     FadeAnimation                                      m_animation;
     FadeAnimation                                      m_stageTransition;
@@ -215,6 +222,7 @@ class OverlayRenderer {
     std::int64_t                                          m_preferencesMonitorId = -1;
     PreferenceControl                                     m_selectedPreference = PreferenceControl::WorkspaceView;
     PreferenceHit                                         m_pointerDownPreference;
+    std::vector<OmarchyTheme>                             m_installedThemes;
     OverviewMode                                          m_mode = OverviewMode::Spatial;
     std::string                                           m_applicationFilter;
     OverviewTarget                                        m_preSearchTarget;

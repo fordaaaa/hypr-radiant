@@ -1,5 +1,7 @@
 #include <hypr-radiant/config/Preferences.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <fstream>
 #include <system_error>
@@ -13,6 +15,16 @@ std::string_view trim(std::string_view value) {
     while (!value.empty() && (value.back() == ' ' || value.back() == '\t' || value.back() == '\r'))
         value.remove_suffix(1);
     return value;
+}
+
+std::string themeSlug(std::string_view value) {
+    if (value == "auto")
+        return {};
+    if (value.empty() || value.front() == '.' || !std::ranges::all_of(value, [](unsigned char character) {
+            return std::islower(character) || std::isdigit(character) || character == '-' || character == '_' || character == '.';
+       }))
+        return {};
+    return std::string{value};
 }
 
 void parseLine(PreferencesState& preferences, std::string_view line) {
@@ -31,26 +43,36 @@ void parseLine(PreferencesState& preferences, std::string_view line) {
             preferences.workspaceView = WorkspaceViewPreference::Stage;
         else if (value == "workspace_wall")
             preferences.workspaceView = WorkspaceViewPreference::WorkspaceWall;
+        else if (value == "carousel")
+            preferences.workspaceView = WorkspaceViewPreference::Carousel;
+        else if (value == "ribbon")
+            preferences.workspaceView = WorkspaceViewPreference::Ribbon;
         else
             preferences.workspaceView = WorkspaceViewPreference::FollowConfig;
     } else if (key == "window_view") {
-        preferences.windowView = value == "grouped" ? WindowViewPreference::Grouped : WindowViewPreference::Spatial;
-    } else if (key == "accent") {
-        if (value == "green")
-            preferences.accent = AccentPreference::Green;
-        else if (value == "blue")
-            preferences.accent = AccentPreference::Blue;
-        else if (value == "violet")
-            preferences.accent = AccentPreference::Violet;
+        if (value == "grouped")
+            preferences.windowView = WindowViewPreference::Grouped;
+        else if (value == "deck")
+            preferences.windowView = WindowViewPreference::Deck;
         else
-            preferences.accent = AccentPreference::FollowConfig;
+            preferences.windowView = WindowViewPreference::Spatial;
     } else if (key == "motion") {
-        if (value == "reduced")
+        if (value == "snap" || value == "quattro")
+            preferences.motion = MotionPreference::Quattro;
+        else if (value == "glitch" || value == "cyberpunk")
+            preferences.motion = MotionPreference::Cyberpunk;
+        else if (value == "lightcycle" || value == "tron")
+            preferences.motion = MotionPreference::Tron;
+        else if (value == "silk" || value == "elegant")
+            preferences.motion = MotionPreference::Elegant;
+        else if (value == "reduced")
             preferences.motion = MotionPreference::Reduced;
         else if (value == "off")
             preferences.motion = MotionPreference::Off;
         else
             preferences.motion = MotionPreference::FollowConfig;
+    } else if (key == "native_theme") {
+        preferences.nativeTheme = themeSlug(value);
     }
 }
 
@@ -60,6 +82,10 @@ std::string_view value(WorkspaceViewPreference preference) {
         return "stage";
     case WorkspaceViewPreference::WorkspaceWall:
         return "workspace_wall";
+    case WorkspaceViewPreference::Carousel:
+        return "carousel";
+    case WorkspaceViewPreference::Ribbon:
+        return "ribbon";
     case WorkspaceViewPreference::FollowConfig:
         return "config";
     }
@@ -67,25 +93,27 @@ std::string_view value(WorkspaceViewPreference preference) {
 }
 
 std::string_view value(WindowViewPreference preference) {
-    return preference == WindowViewPreference::Grouped ? "grouped" : "spatial";
-}
-
-std::string_view value(AccentPreference preference) {
     switch (preference) {
-    case AccentPreference::Green:
-        return "green";
-    case AccentPreference::Blue:
-        return "blue";
-    case AccentPreference::Violet:
-        return "violet";
-    case AccentPreference::FollowConfig:
-        return "config";
+    case WindowViewPreference::Grouped:
+        return "grouped";
+    case WindowViewPreference::Deck:
+        return "deck";
+    case WindowViewPreference::Spatial:
+        return "spatial";
     }
-    return "config";
+    return "spatial";
 }
 
 std::string_view value(MotionPreference preference) {
     switch (preference) {
+    case MotionPreference::Quattro:
+        return "snap";
+    case MotionPreference::Cyberpunk:
+        return "glitch";
+    case MotionPreference::Tron:
+        return "lightcycle";
+    case MotionPreference::Elegant:
+        return "silk";
     case MotionPreference::Reduced:
         return "reduced";
     case MotionPreference::Off:
@@ -114,8 +142,8 @@ std::string serializePreferences(const PreferencesState& preferences) {
     return "# hypr-radiant preferences\n"
         "workspace_view = " + std::string{value(preferences.workspaceView)} + "\n"
         "window_view = " + std::string{value(preferences.windowView)} + "\n"
-        "accent = " + std::string{value(preferences.accent)} + "\n"
-        "motion = " + std::string{value(preferences.motion)} + "\n";
+        "motion = " + std::string{value(preferences.motion)} + "\n"
+        "native_theme = " + (preferences.nativeTheme.empty() ? "auto" : preferences.nativeTheme) + "\n";
 }
 
 std::filesystem::path defaultPreferencesPath() {
@@ -183,6 +211,10 @@ std::string_view label(WorkspaceViewPreference preference) {
         return "STAGE";
     case WorkspaceViewPreference::WorkspaceWall:
         return "WALL";
+    case WorkspaceViewPreference::Carousel:
+        return "CAROUSEL";
+    case WorkspaceViewPreference::Ribbon:
+        return "RIBBON";
     case WorkspaceViewPreference::FollowConfig:
         return "CONFIG";
     }
@@ -190,25 +222,27 @@ std::string_view label(WorkspaceViewPreference preference) {
 }
 
 std::string_view label(WindowViewPreference preference) {
-    return preference == WindowViewPreference::Grouped ? "GROUPED" : "SPATIAL";
-}
-
-std::string_view label(AccentPreference preference) {
     switch (preference) {
-    case AccentPreference::Green:
-        return "GREEN";
-    case AccentPreference::Blue:
-        return "BLUE";
-    case AccentPreference::Violet:
-        return "VIOLET";
-    case AccentPreference::FollowConfig:
-        return "THEME";
+    case WindowViewPreference::Grouped:
+        return "GROUPED";
+    case WindowViewPreference::Deck:
+        return "DECK";
+    case WindowViewPreference::Spatial:
+        return "SPATIAL";
     }
-    return "THEME";
+    return "SPATIAL";
 }
 
 std::string_view label(MotionPreference preference) {
     switch (preference) {
+    case MotionPreference::Quattro:
+        return "SNAP";
+    case MotionPreference::Cyberpunk:
+        return "GLITCH";
+    case MotionPreference::Tron:
+        return "LIGHTCYCLE";
+    case MotionPreference::Elegant:
+        return "SILK";
     case MotionPreference::Reduced:
         return "REDUCED";
     case MotionPreference::Off:
@@ -217,13 +251,6 @@ std::string_view label(MotionPreference preference) {
         return "DEFAULT";
     }
     return "DEFAULT";
-}
-
-AccentPreference stepAccentPreference(AccentPreference preference, int step) {
-    constexpr auto optionCount = 4;
-    const auto     current     = static_cast<int>(preference);
-    const auto     normalized  = ((current + step) % optionCount + optionCount) % optionCount;
-    return static_cast<AccentPreference>(normalized);
 }
 
 } // namespace hypr_radiant

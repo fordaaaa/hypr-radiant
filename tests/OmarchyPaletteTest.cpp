@@ -2,14 +2,22 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
+#include <fstream>
+#include <string>
 #include <string_view>
 
 namespace {
 
+using hypr_radiant::installedOmarchyThemes;
 using hypr_radiant::isLightPalette;
 using hypr_radiant::liftedSurface;
+using hypr_radiant::loadOmarchyPalette;
 using hypr_radiant::OmarchyPalette;
+using hypr_radiant::omarchyPalettePath;
 using hypr_radiant::parseOmarchyPalette;
+using hypr_radiant::themePreviewColors;
 
 constexpr std::string_view OSAKA_JADE = R"(accent = "#509475"
 cursor = "#D7C995"
@@ -92,6 +100,94 @@ void preservesAlphaAndClampsLift() {
     assert(lifted.red <= 1.0F && lifted.red >= 0.999F);
 }
 
+void themePreviewUsesOnlyThemePaletteColors() {
+    const auto palette = parseOmarchyPalette(
+        "background = \"#102030\"\nforeground = \"#d0e0f0\"\naccent = \"#a040c0\"\n");
+    const auto preview = themePreviewColors(palette);
+
+    assert(near(preview[0].red, palette.background.red));
+    assert(near(preview[0].green, palette.background.green));
+    assert(near(preview[1].red, palette.foreground.red));
+    assert(near(preview[1].blue, palette.foreground.blue));
+    assert(near(preview[2].red, palette.accent.red));
+    assert(near(preview[2].blue, palette.accent.blue));
+}
+
+void pointsAtQuattroStateDirectory() {
+    const auto* previousHome = std::getenv("HOME");
+    const auto  savedHome    = previousHome ? std::string{previousHome} : std::string{};
+
+    setenv("HOME", "/tmp/hypr-radiant-palette-test", 1);
+    assert(omarchyPalettePath() == "/tmp/hypr-radiant-palette-test/.local/state/omarchy/current/theme/colors.toml");
+
+    if (previousHome)
+        setenv("HOME", savedHome.c_str(), 1);
+    else
+        unsetenv("HOME");
+}
+
+void discoversAndLoadsInstalledThemes() {
+    const auto* previousHome        = std::getenv("HOME");
+    const auto* previousOmarchyPath = std::getenv("OMARCHY_PATH");
+    const auto  savedHome           = previousHome ? std::string{previousHome} : std::string{};
+    const auto  savedOmarchyPath    = previousOmarchyPath ? std::string{previousOmarchyPath} : std::string{};
+    const auto  root                = std::filesystem::path{"/tmp/hypr-radiant-native-theme-test"};
+    const auto  home                = root / "home";
+    const auto  stock               = root / "omarchy" / "themes";
+    const auto  user                = home / ".config" / "omarchy" / "themes";
+
+    std::error_code error;
+    std::filesystem::remove_all(root, error);
+    std::filesystem::create_directories(stock / "tokyo-night");
+    std::filesystem::create_directories(user / "tokyo-night");
+    std::filesystem::create_directories(user / "custom-terminal");
+    {
+        std::ofstream output{stock / "tokyo-night" / "colors.toml"};
+        output << "background = \"#111111\"\nforeground = \"#eeeeee\"\naccent = \"#3366ff\"\n";
+    }
+    {
+        std::ofstream output{user / "tokyo-night" / "colors.toml"};
+        output << "background = \"#222222\"\nforeground = \"#dddddd\"\naccent = \"#ff6600\"\n";
+    }
+    {
+        std::ofstream output{user / "custom-terminal" / "alacritty.toml"};
+        output << "[colors.primary]\nbackground = '#101820'\nforeground = '#f0f4f8'\n"
+                  "[colors.normal]\nblue = '#00aaff'\n";
+    }
+
+    setenv("HOME", home.c_str(), 1);
+    setenv("OMARCHY_PATH", (root / "omarchy").c_str(), 1);
+
+    const auto themes = installedOmarchyThemes();
+    assert(themes.size() == 2);
+    assert(themes[0].slug == "custom-terminal");
+    assert(themes[0].name == "Custom Terminal");
+    assert(themes[1].slug == "tokyo-night");
+    assert(!themes[1].userPath.empty());
+    assert(!themes[1].stockPath.empty());
+
+    const auto overlaid = loadOmarchyPalette("tokyo-night");
+    assert(overlaid.loaded);
+    assert(near(overlaid.background.red, 0.133F));
+    assert(near(overlaid.accent.red, 1.0F));
+
+    const auto alacritty = loadOmarchyPalette("custom-terminal");
+    assert(alacritty.loaded);
+    assert(near(alacritty.background.red, 0.063F));
+    assert(near(alacritty.foreground.red, 0.941F));
+    assert(near(alacritty.accent.green, 0.667F));
+
+    if (previousHome)
+        setenv("HOME", savedHome.c_str(), 1);
+    else
+        unsetenv("HOME");
+    if (previousOmarchyPath)
+        setenv("OMARCHY_PATH", savedOmarchyPath.c_str(), 1);
+    else
+        unsetenv("OMARCHY_PATH");
+    std::filesystem::remove_all(root, error);
+}
+
 } // namespace
 
 int main() {
@@ -101,5 +197,8 @@ int main() {
     detectsLightAndDarkThemes();
     liftsAwayFromTheBackgroundInBothDirections();
     preservesAlphaAndClampsLift();
+    themePreviewUsesOnlyThemePaletteColors();
+    pointsAtQuattroStateDirectory();
+    discoversAndLoadsInstalledThemes();
     return 0;
 }

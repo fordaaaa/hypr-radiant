@@ -1,5 +1,6 @@
 #include <hypr-radiant/overview/PreferencesPanelGeometry.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 
@@ -10,9 +11,22 @@ namespace {
 void centersPreferredPanelOnLargeMonitor() {
     const auto frame = computePreferencesPanel({.width = 1920.0, .height = 1080.0});
     assert(frame.panel.width == 720.0);
-    assert(frame.panel.height == 390.0);
+    assert(frame.panel.height == 302.0);
     assert(frame.panel.x == 600.0);
-    assert(frame.panel.y == 345.0);
+    assert(frame.panel.y == 389.0);
+}
+
+void wallAndCarouselOmitWindowArrangement() {
+    const auto frame = computePreferencesPanel({.width = 1920.0, .height = 1080.0}, false);
+    assert(frame.panel.height == 242.0);
+    assert(frame.rows.size() == 2);
+    assert(frame.options.size() == 11);
+    assert(std::ranges::none_of(frame.rows, [](const PreferenceRow& row) {
+        return row.control == PreferenceControl::WindowView;
+    }));
+    assert(std::ranges::none_of(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::WindowView;
+    }));
 }
 
 void staysInsideSmallMonitor() {
@@ -25,6 +39,11 @@ void staysInsideSmallMonitor() {
 
 void identifiesEveryControl() {
     const auto frame = computePreferencesPanel({.width = 1280.0, .height = 720.0});
+    assert(containsPreferencesPanel(frame, frame.panel.x, frame.panel.y));
+    assert(containsPreferencesPanel(frame, frame.panel.x + frame.panel.width - 1.0,
+        frame.panel.y + frame.panel.height - 1.0));
+    assert(!containsPreferencesPanel(frame, frame.panel.x - 1.0, frame.panel.y));
+    assert(!containsPreferencesPanel(frame, frame.panel.x, frame.panel.y + frame.panel.height));
     for (const auto& row : frame.rows) {
         assert(hitTestPreferencesPanel(frame, row.rect.x + 4.0, row.rect.y + 4.0).control == row.control);
     }
@@ -37,12 +56,48 @@ void identifiesEveryControl() {
     assert(hitTestPreferencesPanel(frame, 0.0, 0.0).control == PreferenceControl::None);
 }
 
+void presentsInstalledThemesAsACompactSelector() {
+    constexpr auto themeCount = 28;
+    const auto frame = computePreferencesPanel({.width = 1920.0, .height = 1080.0}, true, themeCount);
+    assert(frame.panel.width == 820.0);
+    assert(frame.panel.height == 362.0);
+    assert(frame.panel.x == 550.0);
+    assert(frame.panel.y == 359.0);
+    assert(frame.nativeThemesPane.width == 0.0);
+    assert(frame.rows.size() == 4);
+    assert(frame.rows.back().control == PreferenceControl::NativeTheme);
+    assert(frame.appExposeButton.y > frame.rows.back().rect.y + frame.rows.back().rect.height);
+
+    const auto nativeThemeCount = std::ranges::count_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme;
+    });
+    assert(nativeThemeCount == 3);
+    const auto previousTheme = std::ranges::find_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme && option.value == 0;
+    });
+    const auto selectedTheme = std::ranges::find_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme && option.value == 1;
+    });
+    const auto nextTheme = std::ranges::find_if(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::NativeTheme && option.value == 2;
+    });
+    assert(previousTheme != frame.options.end());
+    assert(selectedTheme != frame.options.end());
+    assert(nextTheme != frame.options.end());
+    assert(selectedTheme->rect.width > previousTheme->rect.width);
+    assert(selectedTheme->rect.width > nextTheme->rect.width);
+    assert(hitTestPreferencesPanel(frame, nextTheme->rect.x + 2.0, nextTheme->rect.y + 2.0) ==
+           (PreferenceHit{.control = PreferenceControl::NativeTheme, .value = 2}));
+}
+
 } // namespace
 
 int main() {
     centersPreferredPanelOnLargeMonitor();
     staysInsideSmallMonitor();
+    wallAndCarouselOmitWindowArrangement();
     identifiesEveryControl();
+    presentsInstalledThemesAsACompactSelector();
     std::cout << "PreferencesPanelGeometryTest passed\n";
     return 0;
 }

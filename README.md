@@ -143,7 +143,7 @@ bind = SUPER, TAB, exec, hyprctl dispatch radiant:toggle
 | `radiant:status` | Notification with the current state, for debugging |
 
 On Quattro, the equivalent Lua functions are `hl.plugin.radiant.toggle()`,
-`open()`, `close()`, and `status()`.
+`open()`, `close()`, `preferences()`, and `status()`.
 
 While it is open, swipe left or right to preview the next workspace. Set
 `gesture_enabled = false` if something else already owns that gesture.
@@ -152,15 +152,17 @@ While it is open, swipe left or right to preview the next workspace. Set
 
 Press `Ctrl+,` while the overview is open. The native Omarchy-style panel controls:
 
-- Stage or Workspace Wall
-- Spatial or application-grouped window arrangement
-- Theme accent or an explicit green, blue or violet accent
+- Stage, Workspace Wall, Workspace Carousel, or the Omarchy-inspired Ribbon
+- In Stage, Spatial, application-grouped, or hero-and-supporting Deck window arrangement
+- Default, Snap, Glitch, Lightcycle, Silk, Reduced, or Off overview animations
+- Any installed Omarchy theme for Radiant, without changing the desktop theme
 - App Exposé for the focused application
 
 Changes are saved immediately to
 `~/.config/hypr-radiant/preferences.conf` (or `$XDG_CONFIG_HOME` when set) and
-survive plugin and Hyprland restarts. `THEME` follows the active Omarchy
-`colors.toml`; it is re-read whenever the overview opens.
+survive plugin and Hyprland restarts. `CURRENT` follows Quattro's active
+`~/.local/state/omarchy/current/theme/colors.toml`; selecting an installed theme
+applies its palette to Radiant only.
 
 ## Views
 
@@ -170,6 +172,13 @@ keeps a workspace shelf at the top edge.
 Workspace Wall shows all workspaces at once as a grid of cards:
 
 ![The Workspace Wall view](assets/workspaces.webp)
+
+Workspace Carousel borrows Quattro's visual theme/background picker: the selected
+workspace stays centered between readable 16:9 side previews for each real
+workspace, followed by one explicit new-workspace target.
+
+Deck arrangement gives the first window a large hero position and packs the rest
+into a supporting column. It is available in Stage alongside Spatial and Grouped.
 
 App Exposé collects every window belonging to the focused application:
 
@@ -182,7 +191,7 @@ With the mouse:
 - Hover a workspace or window to move the selection; a short accent trace resolves into corner
   locks on the chosen card
 - Click a workspace to switch to it, click a window to focus it
-- Drag a window onto a workspace card in Stage or Wall to move it there: the card lifts and follows
+- Drag a window onto a workspace card in Stage, Wall, Carousel, or Ribbon to move it there: the card lifts and follows
   the pointer, the workspace under it runs the destination lock, and the drop settles the card into
   place. Releasing over the window's own workspace, or over nothing, sends it back where it came from
 - Drag a window onto the trailing `+`, or just click it, to create a workspace
@@ -198,7 +207,7 @@ With the keyboard:
 - Start typing to search windows by title or class
 - `/` opens search with every window listed, and types a slash once search is open,
   so window titles that contain a path stay searchable
-- `Tab` switches between the spatial and application-grouped views
+- `Tab` cycles Spatial, Grouped, and Deck window arrangements in Stage
 - `Ctrl+,` opens or closes preferences
 - In preferences, `Left` / `Right` change and save a value; `Enter` confirms it and closes the panel
 - `Enter` activates the selection
@@ -216,7 +225,6 @@ if hl.plugin.radiant then
                 opacity = 0.94,
                 animation_duration = 180,
                 layout = "stage",
-                accent_color = "auto",
                 background_color = "auto",
                 foreground_color = "auto",
                 font_family = "JetBrainsMono Nerd Font",
@@ -238,7 +246,6 @@ plugin {
         opacity = 0.94
         animation_duration = 180
         layout = stage
-        accent_color = auto
         background_color = auto
         foreground_color = auto
         font_family = JetBrainsMono Nerd Font
@@ -254,8 +261,7 @@ plugin {
 | --- | --- |
 | `opacity` | Overlay opacity, `0.0` to `1.0` |
 | `animation_duration` | Fade duration in ms, `0` to `2000` |
-| `layout` | `stage` or `workspace_wall` |
-| `accent_color` | `auto` follows the Omarchy theme; or `#RRGGBB`, `#RRGGBBAA`, `rgb()`, `rgba()` |
+| `layout` | `stage`, `workspace_wall`, `carousel`, or `ribbon` |
 | `background_color`, `foreground_color` | `auto` follows the Omarchy theme, or set them yourself |
 | `font_family` | Interface font |
 | `shortcut_enabled` | Register `SUPER+A` when it is not already bound |
@@ -263,13 +269,20 @@ plugin {
 | `gesture_fingers` | `3` or `4` |
 | `gesture_distance` | Swipe travel in pixels, `120` to `800` |
 
-If no Omarchy theme can be read, the colours fall back to a neutral grey. The
-palette is re-read every time the overview opens, so switching themes does not
-need a reload.
+Radiant's accent always follows the selected Omarchy theme. If no Omarchy theme
+can be read, the colours fall back to a neutral grey. The palette is re-read
+every time the overview or preferences open, so switching themes does not need
+a reload. Installed themes are discovered from Omarchy's stock and user theme
+directories.
 
-The settings panel starts by following these Hyprland values. Choosing Stage or
-Wall saves that view as the preference; `THEME` returns the accent to its
-Hyprland/Omarchy-backed value.
+The settings panel starts by following these Hyprland values. Choosing Stage,
+Wall, Carousel, or Ribbon saves that view as the preference. `CURRENT` follows
+Omarchy's active theme; choosing an installed theme applies its palette to
+Radiant. Default preserves the existing smooth motion. Snap punches cards
+forward from depth, Glitch arrives in staggered digital cuts, Lightcycle sweeps
+cards horizontally like a signal, and Silk uses a slower floating settle across
+every layout. Reduced caps transitions at 90 ms, while Off makes them immediate. The old
+`quattro`, `cyberpunk`, `tron`, and `elegant` saved values remain compatible.
 
 ## Building it yourself
 

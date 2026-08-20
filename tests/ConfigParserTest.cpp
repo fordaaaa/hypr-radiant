@@ -102,6 +102,14 @@ void parsesWorkspaceWallLayoutMode() {
     assert(parseLayoutMode("workspace_wall") == LayoutMode::WorkspaceWall);
 }
 
+void parsesCarouselLayoutMode() {
+    assert(parseLayoutMode("carousel") == LayoutMode::Carousel);
+}
+
+void parsesRibbonLayoutMode() {
+    assert(parseLayoutMode("ribbon") == LayoutMode::Ribbon);
+}
+
 void unknownLayoutModeFallsBackToStage() {
     assert(parseLayoutMode("unknown") == LayoutMode::Stage);
 }
@@ -155,7 +163,6 @@ void registersEveryPluginOptionBeforeRuntimeSetup() {
         "plugin:radiant:opacity",
         "plugin:radiant:animation_duration",
         "plugin:radiant:layout",
-        "plugin:radiant:accent_color",
         "plugin:radiant:background_color",
         "plugin:radiant:foreground_color",
         "plugin:radiant:font_family",
@@ -185,6 +192,8 @@ void registrationFailureNamesTheRejectedOption() {
 int main() {
     parsesStageLayoutMode();
     parsesWorkspaceWallLayoutMode();
+    parsesCarouselLayoutMode();
+    parsesRibbonLayoutMode();
     unknownLayoutModeFallsBackToStage();
     emptyLayoutModeFallsBackToStage();
     parsesAccentFormats();

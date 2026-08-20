@@ -463,6 +463,117 @@ void newWorkspaceTargetAvoidsOtherMonitorIds() {
     assert(frame.workspaces.back().workspaceId == 8);
 }
 
+void carouselCentersThePreviewAndShowsReadableSideColumns() {
+    const auto state = sampleState();
+    auto options = WorkspaceWallOptions{};
+    options.carousel           = true;
+    options.previewWorkspaceId = 2;
+
+    const auto frame = WorkspaceWallLayout{}.compute(state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.carousel);
+    assert(frame.previewWorkspaceId == 2);
+    assert(frame.workspaces.size() == 3);
+    const auto& previous = frame.workspaces.at(0);
+    const auto& selected = frame.workspaces.at(1);
+    const auto& next = frame.workspaces.at(2);
+    assert(selected.rect.width > previous.rect.width * 3.0);
+    assert(selected.rect.width > next.rect.width * 3.0);
+    assert(previous.rect.width > 220.0);
+    assert(next.rect.width == previous.rect.width);
+    assert(std::abs(previous.rect.width / previous.rect.height - 1920.0 / 1080.0) < 0.01);
+    assert(std::abs(selected.rect.x + selected.rect.width / 2.0 - 960.0) < 0.5);
+    assert(previous.rect.x + previous.rect.width < selected.rect.x);
+    assert(next.rect.x > selected.rect.x + selected.rect.width);
+    for (const auto& workspace : frame.workspaces) {
+        assert(workspace.rect.x >= 0.0);
+        assert(workspace.rect.y >= 0.0);
+        assert(workspace.rect.x + workspace.rect.width <= 1920.0);
+        assert(workspace.rect.y + workspace.rect.height <= 1080.0);
+    }
+    assert(!selected.windows.empty());
+    assert(selected.windows.front().rect.x >= selected.rect.x);
+    assert(selected.windows.front().rect.x + selected.windows.front().rect.width <= selected.rect.x + selected.rect.width);
+    assert(frame.workspaces.back().workspaceId == 3);
+    assert(frame.workspaces.back().createTarget);
+    assert(frame.workspaces.back().empty);
+}
+
+void carouselShowsOnlyRealWorkspacesAndOneCreateTarget() {
+    RadiantState state;
+    state.monitors.push_back({.id = 1, .name = "DP-1", .geometry = {.size = {.width = 1920, .height = 1080}}, .activeWorkspaceId = 5, .activeWorkspaceName = "5"});
+    state.workspaces.push_back({.id = 1, .name = "one", .monitorId = 1});
+    state.workspaces.push_back({.id = 5, .name = "five", .monitorId = 1});
+    state.workspaces.push_back({.id = 8, .name = "remote", .monitorId = 2});
+
+    auto options = WorkspaceWallOptions{};
+    options.minimumWorkspaceSlots = 5;
+    options.carousel              = true;
+    options.previewWorkspaceId    = 5;
+    const auto frame = WorkspaceWallLayout{}.compute(
+        state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.workspaces.size() == 3);
+    assert(frame.workspaces.at(0).workspaceId == 1);
+    assert(frame.workspaces.at(1).workspaceId == 5);
+    assert(frame.workspaces.at(2).workspaceId == 9);
+    assert(frame.workspaces.at(2).createTarget);
+    assert(std::ranges::none_of(frame.workspaces, [](const WorkspaceCard& workspace) {
+        return workspace.workspaceId >= 2 && workspace.workspaceId <= 4;
+    }));
+}
+
+void ribbonMatchesTheOmarchyPickerHierarchy() {
+    RadiantState state;
+    state.monitors.push_back({.id = 1, .name = "DP-1", .geometry = {.size = {.width = 1920, .height = 1080}}, .activeWorkspaceId = 3});
+    for (std::int64_t id = 1; id <= 5; ++id)
+        state.workspaces.push_back({.id = id, .name = std::to_string(id), .monitorId = 1});
+
+    auto options = WorkspaceWallOptions{};
+    options.minimumWorkspaceSlots = 0;
+    options.ribbon                = true;
+    options.previewWorkspaceId    = 3;
+    const auto frame = WorkspaceWallLayout{}.compute(
+        state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.carousel);
+    assert(frame.ribbon);
+    assert(frame.previewWorkspaceId == 3);
+    assert(frame.workspaces.size() == 6);
+    const auto& selected = frame.workspaces.at(2);
+    assert(std::abs(selected.rect.width - 768.0) < 0.5);
+    assert(std::abs(selected.rect.x + selected.rect.width / 2.0 - 960.0) < 0.5);
+    for (std::size_t index = 0; index < frame.workspaces.size(); ++index) {
+        if (index == 2)
+            continue;
+        assert(std::abs(frame.workspaces.at(index).rect.width - 108.0) < 0.5);
+        assert(frame.workspaces.at(index).rect.height < selected.rect.height);
+    }
+    // Consecutive slices overlap by the chooser's 30px rhythm, while neither side covers the hero.
+    assert(frame.workspaces.at(0).rect.x + frame.workspaces.at(0).rect.width > frame.workspaces.at(1).rect.x);
+    assert(frame.workspaces.at(1).rect.x + frame.workspaces.at(1).rect.width < selected.rect.x);
+    assert(frame.workspaces.at(3).rect.x > selected.rect.x + selected.rect.width);
+    assert(frame.workspaces.back().createTarget);
+}
+
+void deckArrangementBuildsAHeroAndSupportingColumn() {
+    auto state = sampleState();
+    state.windows.push_back({.stableId = 11, .title = "Browser", .className = "Firefox", .geometry = {.position = {.x = 980, .y = 40}, .size = {.width = 840, .height = 720}}, .workspaceId = 2, .monitorId = 1, .mapped = true});
+    state.windows.push_back({.stableId = 12, .title = "Terminal", .className = "Alacritty", .geometry = {.position = {.x = 1000, .y = 780}, .size = {.width = 800, .height = 260}}, .workspaceId = 2, .monitorId = 1, .mapped = true});
+    auto options = stageOptions();
+    options.mode = OverviewMode::Deck;
+
+    const auto frame = WorkspaceWallLayout{}.compute(state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.stage.windows.size() == 3);
+    const auto& hero = frame.stage.windows.front().rect;
+    assert(hero.width > frame.stage.windows.at(1).rect.width);
+    assert(hero.height > frame.stage.windows.at(1).rect.height);
+    assert(hero.x < frame.stage.windows.at(1).rect.x);
+    assert(hero.x + hero.width < frame.stage.windows.at(1).rect.x + frame.stage.windows.at(1).rect.width);
+    assert(frame.stage.windows.at(1).rect.y < frame.stage.windows.at(2).rect.y);
+}
+
 } // namespace
 
 int main() {
@@ -487,6 +598,10 @@ int main() {
     groupedModeOrdersApplicationsAndMarksHeaders();
     appExposeFiltersAcrossLocalWorkspaces();
     newWorkspaceTargetAvoidsOtherMonitorIds();
+    carouselCentersThePreviewAndShowsReadableSideColumns();
+    carouselShowsOnlyRealWorkspacesAndOneCreateTarget();
+    ribbonMatchesTheOmarchyPickerHierarchy();
+    deckArrangementBuildsAHeroAndSupportingColumn();
     std::cout << "WorkspaceWallLayoutTest passed\n";
     return 0;
 }

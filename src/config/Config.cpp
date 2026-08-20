@@ -169,6 +169,8 @@ std::string RadiantConfig::fontFamily() const {
 }
 
 LayoutMode parseLayoutMode(std::string_view value) {
+    if (value == "carousel")
+        return LayoutMode::Carousel;
     if (value == "workspace_wall")
         return LayoutMode::WorkspaceWall;
 

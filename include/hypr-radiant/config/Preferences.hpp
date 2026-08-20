@@ -11,11 +11,13 @@ enum class WorkspaceViewPreference {
     FollowConfig,
     Stage,
     WorkspaceWall,
+    Carousel,
 };
 
 enum class WindowViewPreference {
     Spatial,
     Grouped,
+    Deck,
 };
 
 enum class AccentPreference {
@@ -27,6 +29,7 @@ enum class AccentPreference {
 
 enum class MotionPreference {
     FollowConfig,
+    Quattro,
     Reduced,
     Off,
 };

@@ -75,6 +75,10 @@ int luaClose(lua_State*) {
     return invokeLuaPluginMethod("hl.plugin.radiant.close", &hypr_radiant::RadiantPlugin::close);
 }
 
+int luaPreferences(lua_State*) {
+    return invokeLuaPluginMethod("hl.plugin.radiant.preferences", &hypr_radiant::RadiantPlugin::preferences);
+}
+
 int luaStatus(lua_State*) {
     return invokeLuaPluginMethod("hl.plugin.radiant.status", &hypr_radiant::RadiantPlugin::status);
 }
@@ -521,6 +525,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle) {
     const bool allLuaFunctionsRegistered = HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "toggle", luaToggle)
         && HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "open", luaOpen)
         && HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "close", luaClose)
+        && HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "preferences", luaPreferences)
         && HyprlandAPI::addLuaFunction(g_pluginHandle, "radiant", "status", luaStatus);
 
     if (!allLuaFunctionsRegistered) {

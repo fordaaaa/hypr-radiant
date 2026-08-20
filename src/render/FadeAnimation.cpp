@@ -5,6 +5,16 @@
 
 namespace hypr_radiant {
 
+double easedAnimationProgress(AnimationCurve curve, double linear, bool opening) noexcept {
+    const auto progress = std::clamp(linear, 0.0, 1.0);
+    if (curve == AnimationCurve::Quattro) {
+        // Quattro's image carousel snaps confidently into its final pose but leaves gently: an
+        // asymmetric cubic makes opening feel immediate without making dismissal look abrupt.
+        return opening ? 1.0 - std::pow(1.0 - progress, 3.0) : std::pow(progress, 3.0);
+    }
+    return progress * progress * (3.0 - 2.0 * progress);
+}
+
 void FadeAnimation::animateTo(bool visible, int durationMs) {
     const auto now = Clock::now();
     update(now);
@@ -36,6 +46,10 @@ void FadeAnimation::setProgress(double value, bool targetVisible) {
     m_targetVisible = targetVisible;
     m_running = false;
     m_duration = std::chrono::milliseconds{0};
+}
+
+void FadeAnimation::setCurve(AnimationCurve curve) noexcept {
+    m_curve = curve;
 }
 
 double FadeAnimation::value() {
@@ -71,7 +85,7 @@ void FadeAnimation::update(Clock::time_point now) {
     }
 
     const auto linear = std::clamp(elapsed / total, 0.0, 1.0);
-    const auto eased  = linear * linear * (3.0 - 2.0 * linear);
+    const auto eased  = easedAnimationProgress(m_curve, linear, m_targetValue >= m_startValue);
 
     m_currentValue = std::lerp(m_startValue, m_targetValue, eased);
 }

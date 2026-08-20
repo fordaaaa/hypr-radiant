@@ -182,6 +182,79 @@ WorkspaceWallFrame computeGridFrame(
     return frame;
 }
 
+WorkspaceWallFrame computeCarouselFrame(
+    const RadiantState& state, const MonitorSnapshot& monitor, const RadiantSize& renderSize, const WorkspaceWallOptions& options,
+    WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById, std::size_t count) {
+    // Quattro's theme/background selectors keep one full preview in the center and turn its
+    // neighbours into narrow, dimmable slices. Start with the normal wall so workspace/window
+    // membership stays identical, then reshape those cards into the same carousel grammar.
+    frame = computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, count);
+    frame.carousel = true;
+
+    const auto selectedId = options.previewWorkspaceId > 0 ? options.previewWorkspaceId :
+        monitor.activeWorkspaceId > 0 ? monitor.activeWorkspaceId : 1;
+    auto selected = std::ranges::find_if(frame.workspaces, [selectedId](const WorkspaceCard& workspace) {
+        return workspace.workspaceId == selectedId;
+    });
+    if (selected == frame.workspaces.end())
+        selected = frame.workspaces.begin();
+    if (selected == frame.workspaces.end())
+        return frame;
+
+    frame.previewWorkspaceId = selected->workspaceId;
+    const auto selectedIndex = static_cast<std::ptrdiff_t>(std::distance(frame.workspaces.begin(), selected));
+    const auto aspect = monitor.geometry.size.height > 0.0 ?
+        std::max(0.2, monitor.geometry.size.width / monitor.geometry.size.height) :
+        std::max(0.2, renderSize.width / std::max(1.0, renderSize.height));
+    const auto centerHeight = std::min(renderSize.height * 0.62, (renderSize.width * 0.58) / aspect);
+    const auto centerWidth  = centerHeight * aspect;
+    const auto sliceWidth   = std::clamp(renderSize.width * 0.055, 64.0, 108.0);
+    const auto sliceHeight  = centerHeight * 0.80;
+    const auto gap          = std::clamp(renderSize.width * 0.007, 10.0, 16.0);
+    const LayoutRect center{
+        .x = centered(renderSize.width, centerWidth),
+        .y = centered(renderSize.height, centerHeight),
+        .width = centerWidth,
+        .height = centerHeight,
+    };
+
+    const auto remap = [](const LayoutRect& child, const LayoutRect& source, const LayoutRect& target) {
+        if (source.width <= 0.0 || source.height <= 0.0)
+            return child;
+        return LayoutRect{
+            .x = target.x + (child.x - source.x) / source.width * target.width,
+            .y = target.y + (child.y - source.y) / source.height * target.height,
+            .width = child.width / source.width * target.width,
+            .height = child.height / source.height * target.height,
+        };
+    };
+
+    for (std::size_t index = 0; index < frame.workspaces.size(); ++index) {
+        auto& workspace = frame.workspaces[index];
+        const auto oldRect = workspace.rect;
+        const auto relative = static_cast<std::ptrdiff_t>(index) - selectedIndex;
+        if (relative == 0) {
+            workspace.rect = center;
+        } else {
+            const auto distance = static_cast<double>(std::abs(relative));
+            const auto x = relative < 0 ?
+                center.x - gap - distance * sliceWidth - (distance - 1.0) * gap :
+                center.x + center.width + gap + (distance - 1.0) * (sliceWidth + gap);
+            workspace.rect = {
+                .x = x,
+                .y = center.y + centered(center.height, sliceHeight) + std::min(42.0, (distance - 1.0) * 7.0),
+                .width = sliceWidth,
+                .height = sliceHeight,
+            };
+        }
+
+        for (auto& window : workspace.windows)
+            window.rect = remap(window.rect, oldRect, workspace.rect);
+    }
+
+    return frame;
+}
+
 WorkspaceWallFrame computeFocusedFrame(
     const RadiantState& state, const MonitorSnapshot& monitor, const RadiantSize& renderSize, const WorkspaceWallOptions& options,
     WorkspaceWallFrame frame, const std::map<std::int64_t, WorkspaceSnapshot>& workspaceById) {
@@ -360,7 +433,7 @@ WorkspaceWallFrame computeFocusedFrame(
         }
     }
 
-    if (options.mode != OverviewMode::Spatial) {
+    if (options.mode == OverviewMode::Grouped || options.mode == OverviewMode::AppExpose) {
         std::sort(stageWindows.begin(), stageWindows.end(), [](const WindowSnapshot& lhs, const WindowSnapshot& rhs) {
             if (lhs.className != rhs.className)
                 return lhs.className < rhs.className;
@@ -472,6 +545,36 @@ WorkspaceWallFrame computeFocusedFrame(
         };
     };
 
+    const auto deckRect = [&](const WindowSnapshot& window, std::size_t index, std::size_t count) {
+        const auto content = inset(stageBounds, std::clamp(std::min(stageBounds.width, stageBounds.height) * 0.025, 14.0, 28.0));
+        if (count <= 1)
+            return fittedRect(window, content, 0.88);
+
+        const auto gap       = std::clamp(renderSize.width * 0.010, 14.0, 22.0);
+        const auto heroWidth = std::max(1.0, content.width * 0.60);
+        if (index == 0) {
+            const LayoutRect hero{.x = content.x, .y = content.y, .width = heroWidth, .height = content.height};
+            return fittedRect(window, hero, 0.96);
+        }
+
+        const auto sideCount = count - 1;
+        const auto [columns, rows] = gridDims(sideCount);
+        const auto sideX      = content.x + heroWidth + gap;
+        const auto sideWidth  = std::max(1.0, content.width - heroWidth - gap);
+        const auto slotWidth  = std::max(1.0, (sideWidth - gap * (columns - 1)) / columns);
+        const auto slotHeight = std::max(1.0, (content.height - gap * (rows - 1)) / rows);
+        const auto sideIndex  = index - 1;
+        const auto row        = static_cast<int>(sideIndex) / columns;
+        const auto column     = static_cast<int>(sideIndex) % columns;
+        const LayoutRect slot{
+            .x = sideX + column * (slotWidth + gap),
+            .y = content.y + row * (slotHeight + gap),
+            .width = slotWidth,
+            .height = slotHeight,
+        };
+        return fittedRect(window, slot, 0.94);
+    };
+
     // Grouped mode gives each application its own shelf: a titled container holding that app's
     // windows. That container is the thing Spatial never draws, so the two modes read apart at
     // a glance instead of differing only by how the same cards are scattered.
@@ -534,7 +637,9 @@ WorkspaceWallFrame computeFocusedFrame(
     for (std::size_t index = 0; index < stageWindows.size(); ++index) {
         const auto& window = stageWindows[index];
         frame.stage.empty = false;
-        const auto rect = options.mode == OverviewMode::Spatial ? spatialRect(window, index, stageWindows.size()) : gridRect(window, index, stageWindows.size());
+        const auto rect = options.mode == OverviewMode::Spatial ? spatialRect(window, index, stageWindows.size()) :
+            options.mode == OverviewMode::Deck ? deckRect(window, index, stageWindows.size()) :
+                                                gridRect(window, index, stageWindows.size());
         frame.stage.windows.push_back(cardForWindow(window, rect, false));
     }
 
@@ -552,9 +657,11 @@ WorkspaceWallFrame WorkspaceWallLayout::compute(
         .monitorId   = monitor.id,
         .bounds      = {.x = 0.0, .y = 0.0, .width = renderSize.width, .height = renderSize.height},
         .workspaces  = {},
-        .rail         = {},
-        .stage        = {},
-        .focusedStage = options.focusedStage,
+        .rail               = {},
+        .stage              = {},
+        .focusedStage       = options.focusedStage,
+        .carousel           = options.carousel,
+        .previewWorkspaceId = options.previewWorkspaceId,
     };
 
     std::int64_t maxWorkspaceId = std::max(1, options.minimumWorkspaceSlots);
@@ -577,6 +684,9 @@ WorkspaceWallFrame WorkspaceWallLayout::compute(
 
     if (options.focusedStage)
         return computeFocusedFrame(state, monitor, renderSize, options, std::move(frame), workspaceById);
+
+    if (options.carousel)
+        return computeCarouselFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, count);
 
     return computeGridFrame(state, monitor, renderSize, options, std::move(frame), workspaceById, count);
 }

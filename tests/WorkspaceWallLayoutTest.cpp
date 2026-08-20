@@ -463,6 +463,47 @@ void newWorkspaceTargetAvoidsOtherMonitorIds() {
     assert(frame.workspaces.back().workspaceId == 8);
 }
 
+void carouselCentersThePreviewAndSlicesItsNeighbours() {
+    const auto state = sampleState();
+    auto options = WorkspaceWallOptions{};
+    options.carousel           = true;
+    options.previewWorkspaceId = 2;
+
+    const auto frame = WorkspaceWallLayout{}.compute(state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.carousel);
+    assert(frame.previewWorkspaceId == 2);
+    const auto& previous = frame.workspaces.at(0);
+    const auto& selected = frame.workspaces.at(1);
+    const auto& next = frame.workspaces.at(2);
+    assert(selected.rect.width > previous.rect.width * 5.0);
+    assert(selected.rect.width > next.rect.width * 5.0);
+    assert(std::abs(selected.rect.x + selected.rect.width / 2.0 - 960.0) < 0.5);
+    assert(previous.rect.x + previous.rect.width < selected.rect.x);
+    assert(next.rect.x > selected.rect.x + selected.rect.width);
+    assert(!selected.windows.empty());
+    assert(selected.windows.front().rect.x >= selected.rect.x);
+    assert(selected.windows.front().rect.x + selected.windows.front().rect.width <= selected.rect.x + selected.rect.width);
+}
+
+void deckArrangementBuildsAHeroAndSupportingColumn() {
+    auto state = sampleState();
+    state.windows.push_back({.stableId = 11, .title = "Browser", .className = "Firefox", .geometry = {.position = {.x = 980, .y = 40}, .size = {.width = 840, .height = 720}}, .workspaceId = 2, .monitorId = 1, .mapped = true});
+    state.windows.push_back({.stableId = 12, .title = "Terminal", .className = "Alacritty", .geometry = {.position = {.x = 1000, .y = 780}, .size = {.width = 800, .height = 260}}, .workspaceId = 2, .monitorId = 1, .mapped = true});
+    auto options = stageOptions();
+    options.mode = OverviewMode::Deck;
+
+    const auto frame = WorkspaceWallLayout{}.compute(state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.stage.windows.size() == 3);
+    const auto& hero = frame.stage.windows.front().rect;
+    assert(hero.width > frame.stage.windows.at(1).rect.width);
+    assert(hero.height > frame.stage.windows.at(1).rect.height);
+    assert(hero.x < frame.stage.windows.at(1).rect.x);
+    assert(hero.x + hero.width < frame.stage.windows.at(1).rect.x + frame.stage.windows.at(1).rect.width);
+    assert(frame.stage.windows.at(1).rect.y < frame.stage.windows.at(2).rect.y);
+}
+
 } // namespace
 
 int main() {
@@ -487,6 +528,8 @@ int main() {
     groupedModeOrdersApplicationsAndMarksHeaders();
     appExposeFiltersAcrossLocalWorkspaces();
     newWorkspaceTargetAvoidsOtherMonitorIds();
+    carouselCentersThePreviewAndSlicesItsNeighbours();
+    deckArrangementBuildsAHeroAndSupportingColumn();
     std::cout << "WorkspaceWallLayoutTest passed\n";
     return 0;
 }

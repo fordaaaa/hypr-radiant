@@ -28,6 +28,20 @@ motion = reduced
     assert(preferences.motion == MotionPreference::Reduced);
 }
 
+void parsesQuattroPreferences() {
+    const auto preferences = parsePreferences(R"(
+workspace_view = carousel
+window_view = deck
+motion = quattro
+)");
+    assert(preferences.workspaceView == WorkspaceViewPreference::Carousel);
+    assert(preferences.windowView == WindowViewPreference::Deck);
+    assert(preferences.motion == MotionPreference::Quattro);
+    assert(label(preferences.workspaceView) == "CAROUSEL");
+    assert(label(preferences.windowView) == "DECK");
+    assert(label(preferences.motion) == "QUATTRO");
+}
+
 void ignoresUnknownKeysAndFallsBackOnUnknownValues() {
     const auto preferences = parsePreferences(R"(
 unknown = preserved-nowhere
@@ -41,10 +55,10 @@ motion = surprise
 
 void serializationRoundTrips() {
     const PreferencesState expected{
-        .workspaceView = WorkspaceViewPreference::Stage,
-        .windowView = WindowViewPreference::Grouped,
+        .workspaceView = WorkspaceViewPreference::Carousel,
+        .windowView = WindowViewPreference::Deck,
         .accent = AccentPreference::Blue,
-        .motion = MotionPreference::Off,
+        .motion = MotionPreference::Quattro,
     };
     assert(parsePreferences(serializePreferences(expected)) == expected);
 }
@@ -62,6 +76,7 @@ void accentNavigationFollowsArrowDirectionAndWraps() {
 int main() {
     defaultsFollowExistingConfig();
     parsesEveryPreference();
+    parsesQuattroPreferences();
     ignoresUnknownKeysAndFallsBackOnUnknownValues();
     serializationRoundTrips();
     accentNavigationFollowsArrowDirectionAndWraps();

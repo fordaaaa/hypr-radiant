@@ -22,6 +22,7 @@ inline constexpr bool DEFAULT_SHORTCUT_ENABLED = true;
 enum class LayoutMode {
     Stage,
     WorkspaceWall,
+    Carousel,
 };
 
 [[nodiscard]] LayoutMode parseLayoutMode(std::string_view value);

@@ -129,6 +129,8 @@ class OverlayRenderer {
     [[nodiscard]] CHyprColor resolvedAccentColor() const;
     [[nodiscard]] LayoutMode effectiveLayoutMode() const;
     [[nodiscard]] int        effectiveAnimationDurationMs() const;
+    [[nodiscard]] AnimationCurve effectiveAnimationCurve() const;
+    void applyMotionProfile();
     [[nodiscard]] OverviewMode defaultOverviewMode() const;
     [[nodiscard]] PreferenceHit preferenceControlAt(double x, double y) const;
     [[nodiscard]] PointerAction applyPreference(PreferenceControl control, int value = -1, int step = 1);

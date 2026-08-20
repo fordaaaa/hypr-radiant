@@ -38,6 +38,14 @@ void positiveDurationVisibilityStartsRunning() {
     assert(animation.targetVisible());
 }
 
+void quattroCurveArrivesFastAndLeavesSoftly() {
+    assert(easedAnimationProgress(AnimationCurve::Quattro, 0.0, true) == 0.0);
+    assert(easedAnimationProgress(AnimationCurve::Quattro, 1.0, true) == 1.0);
+    assert(easedAnimationProgress(AnimationCurve::Quattro, 0.5, true) > 0.80);
+    assert(easedAnimationProgress(AnimationCurve::Quattro, 0.5, false) < 0.20);
+    assert(easedAnimationProgress(AnimationCurve::Smooth, 0.5, true) == 0.5);
+}
+
 void visibleFadeIsMonotonic() {
     auto animation = FadeAnimation{};
     animation.hideImmediate();
@@ -90,6 +98,7 @@ int main() {
     hideImmediateResetsToInvisible();
     zeroDurationVisibilityJumpRendersImmediately();
     positiveDurationVisibilityStartsRunning();
+    quattroCurveArrivesFastAndLeavesSoftly();
     visibleFadeIsMonotonic();
     hiddenFadeIsMonotonicAndReachesZero();
     std::cout << "FadeAnimationTest passed\n";

@@ -102,6 +102,10 @@ void parsesWorkspaceWallLayoutMode() {
     assert(parseLayoutMode("workspace_wall") == LayoutMode::WorkspaceWall);
 }
 
+void parsesCarouselLayoutMode() {
+    assert(parseLayoutMode("carousel") == LayoutMode::Carousel);
+}
+
 void unknownLayoutModeFallsBackToStage() {
     assert(parseLayoutMode("unknown") == LayoutMode::Stage);
 }
@@ -185,6 +189,7 @@ void registrationFailureNamesTheRejectedOption() {
 int main() {
     parsesStageLayoutMode();
     parsesWorkspaceWallLayoutMode();
+    parsesCarouselLayoutMode();
     unknownLayoutModeFallsBackToStage();
     emptyLayoutModeFallsBackToStage();
     parsesAccentFormats();

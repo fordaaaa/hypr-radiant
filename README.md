@@ -143,7 +143,7 @@ bind = SUPER, TAB, exec, hyprctl dispatch radiant:toggle
 | `radiant:status` | Notification with the current state, for debugging |
 
 On Quattro, the equivalent Lua functions are `hl.plugin.radiant.toggle()`,
-`open()`, `close()`, and `status()`.
+`open()`, `close()`, `preferences()`, and `status()`.
 
 While it is open, swipe left or right to preview the next workspace. Set
 `gesture_enabled = false` if something else already owns that gesture.
@@ -152,15 +152,17 @@ While it is open, swipe left or right to preview the next workspace. Set
 
 Press `Ctrl+,` while the overview is open. The native Omarchy-style panel controls:
 
-- Stage or Workspace Wall
-- Spatial or application-grouped window arrangement
+- Stage, Workspace Wall, or the Quattro-inspired Workspace Carousel
+- Spatial, application-grouped, or hero-and-supporting Deck window arrangement
+- Default, Quattro, Reduced, or Off motion
 - Theme accent or an explicit green, blue or violet accent
 - App Exposé for the focused application
 
 Changes are saved immediately to
 `~/.config/hypr-radiant/preferences.conf` (or `$XDG_CONFIG_HOME` when set) and
-survive plugin and Hyprland restarts. `THEME` follows the active Omarchy
-`colors.toml`; it is re-read whenever the overview opens.
+survive plugin and Hyprland restarts. `THEME` follows Quattro's active
+`~/.local/state/omarchy/current/theme/colors.toml`; it is re-read whenever the
+overview or its preferences open.
 
 ## Views
 
@@ -170,6 +172,12 @@ keeps a workspace shelf at the top edge.
 Workspace Wall shows all workspaces at once as a grid of cards:
 
 ![The Workspace Wall view](assets/workspaces.webp)
+
+Workspace Carousel borrows Quattro's visual theme/background picker: the selected
+workspace expands into a full preview while its neighbours become compact slices.
+
+Deck arrangement gives the first window a large hero position and packs the rest
+into a supporting column. It is available in Stage alongside Spatial and Grouped.
 
 App Exposé collects every window belonging to the focused application:
 
@@ -182,7 +190,7 @@ With the mouse:
 - Hover a workspace or window to move the selection; a short accent trace resolves into corner
   locks on the chosen card
 - Click a workspace to switch to it, click a window to focus it
-- Drag a window onto a workspace card in Stage or Wall to move it there: the card lifts and follows
+- Drag a window onto a workspace card in Stage, Wall, or Carousel to move it there: the card lifts and follows
   the pointer, the workspace under it runs the destination lock, and the drop settles the card into
   place. Releasing over the window's own workspace, or over nothing, sends it back where it came from
 - Drag a window onto the trailing `+`, or just click it, to create a workspace
@@ -198,7 +206,7 @@ With the keyboard:
 - Start typing to search windows by title or class
 - `/` opens search with every window listed, and types a slash once search is open,
   so window titles that contain a path stay searchable
-- `Tab` switches between the spatial and application-grouped views
+- `Tab` cycles Spatial, Grouped, and Deck window arrangements in Stage
 - `Ctrl+,` opens or closes preferences
 - In preferences, `Left` / `Right` change and save a value; `Enter` confirms it and closes the panel
 - `Enter` activates the selection
@@ -254,7 +262,7 @@ plugin {
 | --- | --- |
 | `opacity` | Overlay opacity, `0.0` to `1.0` |
 | `animation_duration` | Fade duration in ms, `0` to `2000` |
-| `layout` | `stage` or `workspace_wall` |
+| `layout` | `stage`, `workspace_wall`, or `carousel` |
 | `accent_color` | `auto` follows the Omarchy theme; or `#RRGGBB`, `#RRGGBBAA`, `rgb()`, `rgba()` |
 | `background_color`, `foreground_color` | `auto` follows the Omarchy theme, or set them yourself |
 | `font_family` | Interface font |
@@ -264,12 +272,14 @@ plugin {
 | `gesture_distance` | Swipe travel in pixels, `120` to `800` |
 
 If no Omarchy theme can be read, the colours fall back to a neutral grey. The
-palette is re-read every time the overview opens, so switching themes does not
-need a reload.
+palette is re-read every time the overview or preferences open, so switching
+themes does not need a reload.
 
 The settings panel starts by following these Hyprland values. Choosing Stage or
-Wall saves that view as the preference; `THEME` returns the accent to its
-Hyprland/Omarchy-backed value.
+Wall or Carousel saves that view as the preference; `THEME` returns the accent to
+its Hyprland/Omarchy-backed value. The Quattro motion profile uses a fast cubic
+arrival and softer dismissal; Default keeps the existing smooth motion, Reduced
+caps transitions at 90 ms, and Off makes them immediate.
 
 ## Building it yourself
 

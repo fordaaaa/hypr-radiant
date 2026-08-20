@@ -13,9 +13,8 @@ bool contains(const LayoutRect& rect, double x, double y) {
 
 PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds) {
     constexpr auto preferredWidth  = 720.0;
-    constexpr auto preferredHeight = 390.0;
+    constexpr auto preferredHeight = 510.0;
     constexpr auto outerMargin     = 28.0;
-    constexpr auto rowHeight       = 46.0;
 
     const auto width  = std::max(1.0, std::min(preferredWidth, monitorBounds.width - outerMargin * 2.0));
     const auto height = std::max(1.0, std::min(preferredHeight, monitorBounds.height - outerMargin * 2.0));
@@ -26,12 +25,15 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds) {
         .height = height,
     };
 
+    const auto verticalScale = std::clamp(height / preferredHeight, 0.54, 1.0);
+    const auto rowHeight = 46.0 * verticalScale;
     const auto rowX     = panel.x + 28.0;
     const auto rowWidth = std::max(1.0, panel.width - 56.0);
-    const std::array rowOffsets{102.0, 157.0, 242.0};
+    const std::array rowOffsets{102.0, 157.0, 242.0, 297.0};
     const std::array controls{
         PreferenceControl::WorkspaceView,
         PreferenceControl::WindowView,
+        PreferenceControl::Motion,
         PreferenceControl::Accent,
     };
 
@@ -52,14 +54,14 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds) {
             .control = controls[i],
             .rect = {
                 .x      = rowX,
-                .y      = panel.y + rowOffsets[i],
+                .y      = panel.y + rowOffsets[i] * verticalScale,
                 .width  = rowWidth,
                 .height = rowHeight,
             },
         };
     }
 
-    constexpr std::array optionCounts{2, 2, 4};
+    constexpr std::array optionCounts{3, 3, 4, 4};
     std::size_t optionIndex = 0;
     for (std::size_t rowIndex = 0; rowIndex < frame.rows.size(); ++rowIndex) {
         const auto& row = frame.rows[rowIndex];

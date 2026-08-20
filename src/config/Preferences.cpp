@@ -31,10 +31,17 @@ void parseLine(PreferencesState& preferences, std::string_view line) {
             preferences.workspaceView = WorkspaceViewPreference::Stage;
         else if (value == "workspace_wall")
             preferences.workspaceView = WorkspaceViewPreference::WorkspaceWall;
+        else if (value == "carousel")
+            preferences.workspaceView = WorkspaceViewPreference::Carousel;
         else
             preferences.workspaceView = WorkspaceViewPreference::FollowConfig;
     } else if (key == "window_view") {
-        preferences.windowView = value == "grouped" ? WindowViewPreference::Grouped : WindowViewPreference::Spatial;
+        if (value == "grouped")
+            preferences.windowView = WindowViewPreference::Grouped;
+        else if (value == "deck")
+            preferences.windowView = WindowViewPreference::Deck;
+        else
+            preferences.windowView = WindowViewPreference::Spatial;
     } else if (key == "accent") {
         if (value == "green")
             preferences.accent = AccentPreference::Green;
@@ -45,7 +52,9 @@ void parseLine(PreferencesState& preferences, std::string_view line) {
         else
             preferences.accent = AccentPreference::FollowConfig;
     } else if (key == "motion") {
-        if (value == "reduced")
+        if (value == "quattro")
+            preferences.motion = MotionPreference::Quattro;
+        else if (value == "reduced")
             preferences.motion = MotionPreference::Reduced;
         else if (value == "off")
             preferences.motion = MotionPreference::Off;
@@ -60,6 +69,8 @@ std::string_view value(WorkspaceViewPreference preference) {
         return "stage";
     case WorkspaceViewPreference::WorkspaceWall:
         return "workspace_wall";
+    case WorkspaceViewPreference::Carousel:
+        return "carousel";
     case WorkspaceViewPreference::FollowConfig:
         return "config";
     }
@@ -67,7 +78,15 @@ std::string_view value(WorkspaceViewPreference preference) {
 }
 
 std::string_view value(WindowViewPreference preference) {
-    return preference == WindowViewPreference::Grouped ? "grouped" : "spatial";
+    switch (preference) {
+    case WindowViewPreference::Grouped:
+        return "grouped";
+    case WindowViewPreference::Deck:
+        return "deck";
+    case WindowViewPreference::Spatial:
+        return "spatial";
+    }
+    return "spatial";
 }
 
 std::string_view value(AccentPreference preference) {
@@ -86,6 +105,8 @@ std::string_view value(AccentPreference preference) {
 
 std::string_view value(MotionPreference preference) {
     switch (preference) {
+    case MotionPreference::Quattro:
+        return "quattro";
     case MotionPreference::Reduced:
         return "reduced";
     case MotionPreference::Off:
@@ -183,6 +204,8 @@ std::string_view label(WorkspaceViewPreference preference) {
         return "STAGE";
     case WorkspaceViewPreference::WorkspaceWall:
         return "WALL";
+    case WorkspaceViewPreference::Carousel:
+        return "CAROUSEL";
     case WorkspaceViewPreference::FollowConfig:
         return "CONFIG";
     }
@@ -190,7 +213,15 @@ std::string_view label(WorkspaceViewPreference preference) {
 }
 
 std::string_view label(WindowViewPreference preference) {
-    return preference == WindowViewPreference::Grouped ? "GROUPED" : "SPATIAL";
+    switch (preference) {
+    case WindowViewPreference::Grouped:
+        return "GROUPED";
+    case WindowViewPreference::Deck:
+        return "DECK";
+    case WindowViewPreference::Spatial:
+        return "SPATIAL";
+    }
+    return "SPATIAL";
 }
 
 std::string_view label(AccentPreference preference) {
@@ -209,6 +240,8 @@ std::string_view label(AccentPreference preference) {
 
 std::string_view label(MotionPreference preference) {
     switch (preference) {
+    case MotionPreference::Quattro:
+        return "QUATTRO";
     case MotionPreference::Reduced:
         return "REDUCED";
     case MotionPreference::Off:

@@ -49,30 +49,35 @@ double easedProgress(double value) {
 struct CarouselMotion {
     double startScale;
     double verticalTravel;
+    double wallVerticalTravel;
     double horizontalTravel;
     double staggerSpan;
+    double stageStartScale;
+    double stageVerticalTravel;
+    double stageHorizontalTravel;
     bool   alternateHorizontal;
     bool   sweepFromEdges;
+    bool   stageAlternateHorizontal;
 };
 
 constexpr CarouselMotion carouselMotion(MotionPreference preference) noexcept {
     switch (preference) {
     case MotionPreference::Quattro:
-        return {.startScale = 0.78, .verticalTravel = 0.0, .horizontalTravel = 0.0, .staggerSpan = 0.045, .alternateHorizontal = false, .sweepFromEdges = false};
+        return {.startScale = 0.78, .verticalTravel = 0.0, .wallVerticalTravel = 0.0, .horizontalTravel = 0.0, .staggerSpan = 0.045, .stageStartScale = 1.20, .stageVerticalTravel = 0.0, .stageHorizontalTravel = 0.0, .alternateHorizontal = false, .sweepFromEdges = false, .stageAlternateHorizontal = false};
     case MotionPreference::Cyberpunk:
-        return {.startScale = 1.0, .verticalTravel = 8.0, .horizontalTravel = 64.0, .staggerSpan = 0.025, .alternateHorizontal = true, .sweepFromEdges = false};
+        return {.startScale = 1.0, .verticalTravel = 8.0, .wallVerticalTravel = 8.0, .horizontalTravel = 64.0, .staggerSpan = 0.025, .stageStartScale = 1.0, .stageVerticalTravel = 0.0, .stageHorizontalTravel = 72.0, .alternateHorizontal = true, .sweepFromEdges = false, .stageAlternateHorizontal = true};
     case MotionPreference::Tron:
-        return {.startScale = 0.97, .verticalTravel = 10.0, .horizontalTravel = 220.0, .staggerSpan = 0.09, .alternateHorizontal = false, .sweepFromEdges = true};
+        return {.startScale = 0.97, .verticalTravel = 10.0, .wallVerticalTravel = 10.0, .horizontalTravel = 220.0, .staggerSpan = 0.09, .stageStartScale = 1.0, .stageVerticalTravel = 10.0, .stageHorizontalTravel = 220.0, .alternateHorizontal = false, .sweepFromEdges = true, .stageAlternateHorizontal = false};
     case MotionPreference::Elegant:
-        return {.startScale = 0.88, .verticalTravel = 54.0, .horizontalTravel = 0.0, .staggerSpan = 0.18, .alternateHorizontal = false, .sweepFromEdges = false};
+        return {.startScale = 0.88, .verticalTravel = 54.0, .wallVerticalTravel = 54.0, .horizontalTravel = 0.0, .staggerSpan = 0.18, .stageStartScale = 0.90, .stageVerticalTravel = 54.0, .stageHorizontalTravel = 0.0, .alternateHorizontal = false, .sweepFromEdges = false, .stageAlternateHorizontal = false};
     case MotionPreference::Off:
-        return {.startScale = 1.0, .verticalTravel = 0.0, .horizontalTravel = 0.0, .staggerSpan = 0.0, .alternateHorizontal = false, .sweepFromEdges = false};
+        return {.startScale = 1.0, .verticalTravel = 0.0, .wallVerticalTravel = 0.0, .horizontalTravel = 0.0, .staggerSpan = 0.0, .stageStartScale = 1.0, .stageVerticalTravel = 0.0, .stageHorizontalTravel = 0.0, .alternateHorizontal = false, .sweepFromEdges = false, .stageAlternateHorizontal = false};
     case MotionPreference::FollowConfig:
     case MotionPreference::Reduced:
         // The Default composition intentionally matches Radiant's original card entrance exactly.
-        return {.startScale = 0.94, .verticalTravel = 12.0, .horizontalTravel = 0.0, .staggerSpan = 0.13, .alternateHorizontal = false, .sweepFromEdges = false};
+        return {.startScale = 0.94, .verticalTravel = 12.0, .wallVerticalTravel = 28.0, .horizontalTravel = 0.0, .staggerSpan = 0.13, .stageStartScale = 1.08, .stageVerticalTravel = 0.0, .stageHorizontalTravel = 0.0, .alternateHorizontal = false, .sweepFromEdges = false, .stageAlternateHorizontal = false};
     }
-    return {.startScale = 0.94, .verticalTravel = 12.0, .horizontalTravel = 0.0, .staggerSpan = 0.13, .alternateHorizontal = false, .sweepFromEdges = false};
+    return {.startScale = 0.94, .verticalTravel = 12.0, .wallVerticalTravel = 28.0, .horizontalTravel = 0.0, .staggerSpan = 0.13, .stageStartScale = 1.08, .stageVerticalTravel = 0.0, .stageHorizontalTravel = 0.0, .alternateHorizontal = false, .sweepFromEdges = false, .stageAlternateHorizontal = false};
 }
 
 CBox boxFor(const LayoutRect& rect) {
@@ -436,13 +441,21 @@ void OverlayRenderer::toggle(RadiantState state) {
 
 void OverlayRenderer::moveSelection(NavigationDirection direction) {
     if (m_preferencesVisible) {
-        static constexpr std::array controls{
+        static constexpr std::array stageControls{
             PreferenceControl::WorkspaceView,
             PreferenceControl::WindowView,
             PreferenceControl::Motion,
             PreferenceControl::Accent,
             PreferenceControl::AppExpose,
         };
+        static constexpr std::array globalControls{
+            PreferenceControl::WorkspaceView,
+            PreferenceControl::Motion,
+            PreferenceControl::Accent,
+            PreferenceControl::AppExpose,
+        };
+        const auto controls = effectiveLayoutMode() == LayoutMode::Stage ?
+            std::span<const PreferenceControl>{stageControls} : std::span<const PreferenceControl>{globalControls};
         const auto current = std::ranges::find(controls, m_selectedPreference);
         auto index = current == controls.end() ? std::size_t{0} : static_cast<std::size_t>(std::distance(controls.begin(), current));
         if (direction == NavigationDirection::Up)
@@ -1408,7 +1421,7 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         ? easedProgress(m_pressTransition.value())
                           : 0.0;
     const auto motion = m_preferences.state().motion;
-    const auto carouselEntrance = carouselMotion(motion);
+    const auto motionSpec = carouselMotion(motion);
     std::optional<LayoutRect> draggedSlot;
 
     if (!frame.carousel) {
@@ -1449,7 +1462,7 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         const auto compact = carouselThumbnail ? workspace.rect.width <= 110.0 || workspace.rect.height <= 70.0 :
                                                   workspace.rect.width <= 140.0 || workspace.rect.height <= 120.0;
         const auto round        = compact ? 14 : 18;
-        const auto staggerSpan  = frame.carousel ? carouselEntrance.staggerSpan : 0.13;
+        const auto staggerSpan  = motionSpec.staggerSpan;
         const auto stagger      = frame.workspaces.size() <= 1 ? 0.0 :
             static_cast<double>(workspaceIndex) / static_cast<double>(frame.workspaces.size() - 1) * staggerSpan;
         const auto cardEntrance = easedProgress((entrance - stagger) / std::max(0.01, 1.0 - stagger));
@@ -1466,22 +1479,24 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             if (previousWorkspace != previousCarouselFrame->workspaces.end())
                 baseRect = interpolatedRect(previousWorkspace->rect, workspace.rect, entrance);
         }
-        const auto startScale = frame.carousel ? carouselEntrance.startScale : 0.94;
+        const auto startScale = motionSpec.startScale;
         auto       displayRect  = scaledAroundCenter(baseRect,
             std::lerp(startScale, 1.0, cardEntrance) * std::lerp(1.0, workspaceSelected ? 1.018 : 1.006, hoverLift) * std::lerp(1.0, 1.03, drop),
             -std::lerp(0.0, workspaceSelected ? 7.0 : 3.0, hoverLift) - 6.0 * drop);
         const auto unresolved = 1.0 - cardEntrance;
-        displayRect.y += unresolved * (frame.carousel ? carouselEntrance.verticalTravel :
-                                                        28.0 + static_cast<double>(workspaceIndex % 3) * 7.0);
-        if (frame.carousel && carouselEntrance.alternateHorizontal) {
+        auto verticalTravel = frame.carousel ? motionSpec.verticalTravel : motionSpec.wallVerticalTravel;
+        if (!frame.carousel && (motion == MotionPreference::FollowConfig || motion == MotionPreference::Reduced))
+            verticalTravel += static_cast<double>(workspaceIndex % 3) * 7.0;
+        displayRect.y += unresolved * verticalTravel;
+        if (motionSpec.alternateHorizontal) {
             const auto direction = workspaceIndex % 2 == 0 ? -1.0 : 1.0;
-            displayRect.x += unresolved * carouselEntrance.horizontalTravel * direction;
-        } else if (frame.carousel && carouselEntrance.sweepFromEdges) {
+            displayRect.x += unresolved * motionSpec.horizontalTravel * direction;
+        } else if (motionSpec.sweepFromEdges) {
             const auto cardCenter = workspace.rect.x + workspace.rect.width / 2.0;
             const auto screenCenter = frame.bounds.width / 2.0;
             const auto direction = std::abs(cardCenter - screenCenter) < 1.0 ? 1.0 : cardCenter < screenCenter ? -1.0
                                                                                                 : 1.0;
-            displayRect.x += unresolved * carouselEntrance.horizontalTravel * direction;
+            displayRect.x += unresolved * motionSpec.horizontalTravel * direction;
         }
         const auto workspaceBox = boxFor(displayRect);
         const auto cardAlpha    = contentAlpha * cardEntrance * (carouselThumbnail ? 0.80 : 1.0);
@@ -1526,12 +1541,12 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         // Triangle pulse avoids transcendental work in the per-card render path while keeping the
         // same zero-at-ends, brightest-at-midpoint signal envelope.
         const auto entranceSignal = 1.0 - std::abs(cardEntrance * 2.0 - 1.0);
-        if (frame.carousel && motion == MotionPreference::Cyberpunk && entranceSignal > 0.001) {
+        if (motion == MotionPreference::Cyberpunk && entranceSignal > 0.001) {
             const auto ghostOffset = workspaceIndex % 2 == 0 ? -10.0 : 10.0;
             const auto ghostBox = CBox{workspaceBox.x + ghostOffset * entranceSignal, workspaceBox.y,
                 workspaceBox.w, workspaceBox.h};
             drawBorder(ghostBox, withAlpha(accentLit, cardAlpha * 0.20 * entranceSignal), round, 1);
-        } else if (frame.carousel && motion == MotionPreference::Tron && entranceSignal > 0.001) {
+        } else if (motion == MotionPreference::Tron && entranceSignal > 0.001) {
             const auto scanX = workspaceBox.x + workspaceBox.w * cardEntrance;
             drawRect(CBox{scanX, workspaceBox.y + 5.0, 2.0, std::max(1.0, workspaceBox.h - 10.0)},
                 withAlpha(accentLit, cardAlpha * 0.62 * entranceSignal), damage, 1);
@@ -1775,62 +1790,55 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
     if (!m_preferencesVisible || frame.monitorId != m_preferencesMonitorId)
         return;
 
-    const auto geometry   = computePreferencesPanel(frame.bounds);
+    const auto geometry   = computePreferencesPanel(frame.bounds, effectiveLayoutMode() == LayoutMode::Stage);
     const auto accent     = resolvedAccentColor();
     const auto foreground = m_config.foregroundColor();
     const auto panelBox   = boxFor(geometry.panel);
     const auto panelAlpha = std::clamp(alpha, 0.0, 1.0);
 
     auto dim = m_config.backgroundColor();
-    dim.a = static_cast<float>(0.68 * panelAlpha);
+    dim.a = static_cast<float>(0.58 * panelAlpha);
     drawRect(CBox{0.0, 0.0, frame.bounds.width, frame.bounds.height}, dim, damage);
-    drawRect(CBox{panelBox.x + 8.0, panelBox.y + 10.0, panelBox.w, panelBox.h},
-        withAlpha(Theme::shadowColor(), panelAlpha * 0.74), damage);
-    drawRect(panelBox, withAlpha(m_config.backgroundColor(), panelAlpha * 0.95), damage, 0, true);
-    drawBorder(panelBox, withAlpha(foreground, panelAlpha * 0.82), 0, 2);
-
-    drawRect(CBox{panelBox.x, panelBox.y, 4.0, 58.0}, withAlpha(accent, panelAlpha), damage);
-    drawRect(CBox{panelBox.x + 1.0, panelBox.y + 57.0, panelBox.w - 2.0, 1.0},
-        withAlpha(foreground, panelAlpha * 0.16), damage);
-    m_labels.renderColored("> radiant // quattro", panelBox.x + 22.0, panelBox.y + 17.0,
-        panelBox.w - 150.0, Theme::footerSize(), accent, panelAlpha, damage);
-    m_labels.renderColored("~/.config/hypr-radiant/preferences.conf", panelBox.x + 22.0, panelBox.y + 39.0,
-        panelBox.w - 170.0, Theme::badgeSize(), foreground, panelAlpha * 0.42, damage);
+    constexpr auto panelRadius = 0;
+    const auto     panelSurface = surfaceColor(0.0F, panelAlpha * 0.985);
+    drawRect(panelBox, panelSurface, damage, panelRadius, true);
+    drawBorder(panelBox, withAlpha(accent, panelAlpha), panelRadius, 2);
 
     const auto closeBox = boxFor(geometry.closeButton);
     const auto closeSelected = m_selectedPreference == PreferenceControl::Close;
-    drawRect(closeBox, withAlpha(foreground, panelAlpha * (closeSelected ? 0.12 : 0.05)), damage);
-    drawBorder(closeBox, withAlpha(foreground, panelAlpha * 0.20), 0, 1);
+    drawRect(closeBox, withAlpha(foreground, panelAlpha * (closeSelected ? 0.08 : 0.0)), damage, 0);
+    drawBorder(closeBox, withAlpha(foreground, panelAlpha * (closeSelected ? 0.25 : 0.40)), 0, 1);
     m_labels.renderCentered("X", closeBox, Theme::hintSize(),
-        closeSelected ? accent : foreground, panelAlpha * (closeSelected ? 1.0 : 0.58), damage);
+        closeSelected ? accent : foreground, panelAlpha * (closeSelected ? 1.0 : 0.72), damage);
 
-    m_labels.renderColored("LAYOUT", geometry.panel.x + 30.0, geometry.rows[0].rect.y - 23.0,
-        geometry.panel.width - 60.0, Theme::badgeSize(), accent, panelAlpha * 0.72, damage);
-    drawRect(CBox{geometry.panel.x + 82.0, geometry.rows[0].rect.y - 18.0, geometry.panel.width - 112.0, 1.0},
-        withAlpha(foreground, panelAlpha * 0.11), damage);
-    m_labels.renderColored("STYLE", geometry.panel.x + 30.0, geometry.rows[2].rect.y - 23.0,
-        geometry.panel.width - 60.0, Theme::badgeSize(), accent, panelAlpha * 0.72, damage);
-    drawRect(CBox{geometry.panel.x + 76.0, geometry.rows[2].rect.y - 18.0, geometry.panel.width - 106.0, 1.0},
-        withAlpha(foreground, panelAlpha * 0.11), damage);
-
-    const std::array rowLabels{
-        "01  workspace.layout",
-        "02  windows.arrangement",
-        "03  overview.animations",
-        "04  interface.accent",
+    const auto rowLabel = [](PreferenceControl control) -> std::string {
+        switch (control) {
+        case PreferenceControl::WorkspaceView:
+            return "WORKSPACE";
+        case PreferenceControl::WindowView:
+            return "WINDOWS";
+        case PreferenceControl::Motion:
+            return "MOTION";
+        case PreferenceControl::Accent:
+            return "THEME";
+        case PreferenceControl::None:
+        case PreferenceControl::AppExpose:
+        case PreferenceControl::Close:
+            return {};
+        }
+        return {};
     };
 
-    for (std::size_t i = 0; i < geometry.rows.size(); ++i) {
-        const auto& row = geometry.rows[i];
+    for (const auto& row : geometry.rows) {
         const auto selected = row.control == m_selectedPreference;
-        const auto rowBox = boxFor(row.rect);
-        drawRect(rowBox, withAlpha(foreground, panelAlpha * (selected ? 0.07 : 0.025)), damage);
-        drawRect(CBox{rowBox.x, rowBox.y + 8.0, 3.0, rowBox.h - 16.0},
-            withAlpha(selected ? accent : foreground, panelAlpha * (selected ? 0.92 : 0.10)), damage);
-
-        m_labels.renderColored(rowLabels[i], row.rect.x + 15.0, row.rect.y + 17.0,
-            std::max(1.0, row.rect.width * 0.40), Theme::hintSize(), selected ? accent : foreground,
-            panelAlpha * (selected ? 0.92 : 0.52), damage);
+        if (selected) {
+            const auto rowBox = boxFor(row.rect);
+            drawRect(rowBox, withAlpha(foreground, panelAlpha * 0.08), damage, 0);
+            drawBorder(rowBox, withAlpha(foreground, panelAlpha * 0.25), 0, 1);
+        }
+        m_labels.renderColored(rowLabel(row.control), row.rect.x + 16.0, row.rect.y + centered(row.rect.height, 12.0),
+            126.0, Theme::hintSize(), selected ? accent : foreground,
+            panelAlpha * (selected ? 1.0 : 0.58), damage);
     }
 
     const auto activeOption = [this](PreferenceControl control) {
@@ -1868,7 +1876,7 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
             return labels[static_cast<std::size_t>(std::clamp(value, 0, 6))];
         }
         case PreferenceControl::Accent: {
-                static constexpr std::array labels{"THEME", "GREEN", "BLUE", "VIOLET"};
+                static constexpr std::array labels{"AUTO", "GREEN", "BLUE", "VIOLET"};
                 return labels[static_cast<std::size_t>(std::clamp(value, 0, 3))];
         }
         case PreferenceControl::None:
@@ -1880,33 +1888,20 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
     };
     for (const auto& option : geometry.options) {
         const auto optionBox = boxFor(option.rect);
-        const auto active = option.value == activeOption(option.control);
-        drawRect(optionBox, withAlpha(foreground, panelAlpha * (active ? 0.10 : 0.025)), damage);
-        drawBorder(optionBox, withAlpha(active ? accent : foreground, panelAlpha * (active ? 0.58 : 0.11)), 0, 1);
-        m_labels.renderCentered(optionLabel(option.control, option.value), optionBox, Theme::badgeSize(),
-            active ? accent : foreground, panelAlpha * (active ? 1.0 : 0.48), damage);
+        const auto active    = option.value == activeOption(option.control);
+        const auto focused   = active && option.control == m_selectedPreference;
+        drawRect(optionBox, withAlpha(foreground, panelAlpha * (active ? 0.18 : 0.0)), damage, 0);
+        drawBorder(optionBox, withAlpha(foreground, panelAlpha * (focused ? 0.25 : 0.40)), 0, 1);
+        m_labels.renderCentered(optionLabel(option.control, option.value), optionBox, Theme::hintSize(),
+            active ? accent : foreground, panelAlpha * (active ? 1.0 : 0.72), damage);
     }
 
     const auto appSelected = m_selectedPreference == PreferenceControl::AppExpose;
-    const auto appBox = boxFor(geometry.appExposeButton);
-    drawRect(appBox, withAlpha(foreground, panelAlpha * (appSelected ? 0.09 : 0.035)), damage);
-    drawBorder(appBox, withAlpha(appSelected ? accent : foreground, panelAlpha * (appSelected ? 0.72 : 0.14)), 0, 1);
-    m_labels.renderColored("> radiant app --focused", geometry.appExposeButton.x + 16.0, geometry.appExposeButton.y + 11.0,
-        geometry.appExposeButton.width - 128.0, Theme::hintSize(),
-        appSelected ? accent : foreground, panelAlpha * 0.72, damage);
-    const auto runBox = CBox{
-        geometry.appExposeButton.x + geometry.appExposeButton.width - 96.0,
-        geometry.appExposeButton.y + 5.0,
-        84.0,
-        geometry.appExposeButton.height - 10.0,
-    };
-    drawRect(runBox, withAlpha(foreground, panelAlpha * 0.07), damage);
-    drawBorder(runBox, withAlpha(accent, panelAlpha * 0.48), 0, 1);
-    m_labels.renderCentered("[run ↵]", runBox, Theme::badgeSize(), accent, panelAlpha, damage);
-
-    m_labels.renderColored("↑↓ navigate   ←→ change   enter save/close   ctrl+, close",
-        geometry.panel.x + 28.0, geometry.panel.y + geometry.panel.height - 25.0,
-        geometry.panel.width - 210.0, Theme::badgeSize(), foreground, panelAlpha * 0.30, damage);
+    const auto appBox      = boxFor(geometry.appExposeButton);
+    drawRect(appBox, withAlpha(foreground, panelAlpha * (appSelected ? 0.08 : 0.0)), damage, 0);
+    drawBorder(appBox, withAlpha(foreground, panelAlpha * (appSelected ? 0.25 : 0.40)), 0, 1);
+    m_labels.renderCentered("APP WINDOWS", appBox, Theme::hintSize(),
+        appSelected ? accent : foreground, panelAlpha * (appSelected ? 1.0 : 0.72), damage);
 }
 
 void OverlayRenderer::renderStageWindows(const WorkspaceWallFrame& frame, const StageContext& ctx, const CRegion& damage) {
@@ -1914,6 +1909,8 @@ void OverlayRenderer::renderStageWindows(const WorkspaceWallFrame& frame, const 
     const auto pressDip = m_pointerDown && !m_dragging && m_pointerDownTarget.type == OverviewTargetType::Window
         ? easedProgress(m_pressTransition.value())
                           : 0.0;
+    const auto motionSpec = carouselMotion(ctx.motion);
+    const auto unresolvedEntrance = 1.0 - ctx.entranceTransition;
     std::optional<LayoutRect> draggedSlot;
 
     for (const auto& window : frame.stage.windows) {
@@ -1928,6 +1925,10 @@ void OverlayRenderer::renderStageWindows(const WorkspaceWallFrame& frame, const 
         const auto held    = m_pointerDownTarget.type == OverviewTargetType::Window && window.stableId == m_pointerDownTarget.windowId;
         const auto dragged = held && m_dragging;
         auto displayRect = remapStageRect(window.rect, frame.stage.bounds, ctx.pushedStageBounds);
+        if (motionSpec.stageAlternateHorizontal) {
+            const auto direction = window.stableId % 2 == 0 ? -1.0 : 1.0;
+            displayRect.x += unresolvedEntrance * motionSpec.stageHorizontalTravel * direction;
+        }
         if (dragged)
             draggedSlot = displayRect;
         if (selected)
@@ -2053,6 +2054,8 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
     const auto accent       = resolvedAccentColor();
     const auto railSurface  = surfaceColor(0.10F, 0.72);
     const auto stageSurface = surfaceColor(0.12F, 1.0);
+    const auto motion       = m_preferences.state().motion;
+    const auto motionSpec   = carouselMotion(motion);
     auto railBox            = boxFor(frame.rail.bounds);
     // A hover only changes the previewed workspace on the monitor under the pointer. Scoping the
     // stage transition to that monitor stops the others from replaying their entrance animation.
@@ -2181,10 +2184,19 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
         m_labels.render("\xe2\x80\xba", frame.rail.bounds.x + frame.rail.bounds.width - 20.0,
             frame.rail.bounds.y + railEntranceOffset + frame.rail.bounds.height / 2.0 - 10.0, 16.0, Theme::titleSize(), railAlpha * 0.72, damage);
 
-    // Depth push: the outgoing workspace recedes and fades out while the incoming one settles
-    // forward from a slightly larger scale. No lateral travel, so the change reads as depth.
+    // The incoming stage follows the same selected motion language as Wall and Carousel.
     const auto stageAlpha        = contentAlpha * transition;
-    const auto pushedStageBounds = scaledAroundCenter(displayedStageBounds, std::lerp(1.08, 1.0, transition));
+    auto pushedStageBounds = scaledAroundCenter(displayedStageBounds, std::lerp(motionSpec.stageStartScale, 1.0, transition));
+    const auto unresolvedStage = 1.0 - transition;
+    pushedStageBounds.x += unresolvedStage * (motionSpec.stageAlternateHorizontal ? 0.0 : motionSpec.stageHorizontalTravel);
+    pushedStageBounds.y += unresolvedStage * motionSpec.stageVerticalTravel;
+
+    const auto entranceSignal = 1.0 - std::abs(transition * 2.0 - 1.0);
+    if (motion == MotionPreference::Tron && entranceSignal > 0.001) {
+        const auto scanX = pushedStageBounds.x + pushedStageBounds.width * transition;
+        drawRect(CBox{scanX, pushedStageBounds.y, 2.0, pushedStageBounds.height},
+            withAlpha(accent, stageAlpha * 0.38 * entranceSignal), damage, 1);
+    }
 
     if (previousFrame && previousFrame->stage.workspaceId != frame.stage.workspaceId && transition < 1.0) {
         const auto previousAlpha = contentAlpha * (1.0 - transition);
@@ -2208,7 +2220,9 @@ void OverlayRenderer::renderStageFrame(const WorkspaceWallFrame& frame, double a
     const StageContext stageCtx{
         .contentAlpha = contentAlpha,
         .stageAlpha           = stageAlpha,
+        .entranceTransition   = transition,
         .selectionTransition  = selectionTransition,
+        .motion               = motion,
         .accent               = accent,
         .stageSurface         = stageSurface,
         .railSurface          = railSurface,
@@ -2560,7 +2574,8 @@ PreferenceHit OverlayRenderer::preferenceControlAt(double x, double y) const {
     const auto* frame = frameForPoint(x, y, localX, localY);
     if (!frame || frame->monitorId != m_preferencesMonitorId)
         return {};
-    return hitTestPreferencesPanel(computePreferencesPanel(frame->bounds), localX, localY);
+    return hitTestPreferencesPanel(
+        computePreferencesPanel(frame->bounds, effectiveLayoutMode() == LayoutMode::Stage), localX, localY);
 }
 
 PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int value, int step) {

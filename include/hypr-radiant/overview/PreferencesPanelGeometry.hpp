@@ -2,7 +2,7 @@
 
 #include <hypr-radiant/overview/WorkspaceWallLayout.hpp>
 
-#include <array>
+#include <vector>
 
 namespace hypr_radiant {
 
@@ -35,14 +35,15 @@ struct PreferenceHit {
 };
 
 struct PreferencesPanelFrame {
-    LayoutRect                   panel;
-    LayoutRect                   closeButton;
-    std::array<PreferenceRow, 4>  rows;
-    std::array<PreferenceOption, 17> options;
-    LayoutRect                   appExposeButton;
+    LayoutRect                    panel;
+    LayoutRect                    closeButton;
+    std::vector<PreferenceRow>    rows;
+    std::vector<PreferenceOption> options;
+    LayoutRect                    appExposeButton;
 };
 
-[[nodiscard]] PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds);
+[[nodiscard]] PreferencesPanelFrame computePreferencesPanel(
+    const LayoutRect& monitorBounds, bool includeWindowArrangement = true);
 [[nodiscard]] PreferenceHit         hitTestPreferencesPanel(const PreferencesPanelFrame& frame, double x, double y);
 
 } // namespace hypr_radiant

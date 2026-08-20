@@ -153,7 +153,7 @@ While it is open, swipe left or right to preview the next workspace. Set
 Press `Ctrl+,` while the overview is open. The native Omarchy-style panel controls:
 
 - Stage, Workspace Wall, or the Quattro-inspired Workspace Carousel
-- Spatial, application-grouped, or hero-and-supporting Deck window arrangement
+- In Stage, Spatial, application-grouped, or hero-and-supporting Deck window arrangement
 - Default, Snap, Glitch, Lightcycle, Silk, Reduced, or Off overview animations
 - Theme accent or an explicit green, blue or violet accent
 - App Exposé for the focused application
@@ -281,7 +281,8 @@ Wall or Carousel saves that view as the preference; `THEME` returns the accent t
 its Hyprland/Omarchy-backed value. Default preserves the existing smooth motion.
 Snap punches cards forward from depth, Glitch arrives in staggered digital cuts,
 Lightcycle sweeps cards horizontally like a signal, and Silk uses a slower floating
-settle. Reduced caps transitions at 90 ms, while Off makes them immediate. The old
+settle across Stage, Wall, and Carousel. Reduced caps transitions at 90 ms, while Off
+makes them immediate. The old
 `quattro`, `cyberpunk`, `tron`, and `elegant` saved values remain compatible.
 
 ## Building it yourself

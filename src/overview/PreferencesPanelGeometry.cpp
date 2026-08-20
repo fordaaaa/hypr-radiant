@@ -11,9 +11,9 @@ bool contains(const LayoutRect& rect, double x, double y) {
 
 } // namespace
 
-PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds) {
-    constexpr auto preferredWidth  = 720.0;
-    constexpr auto preferredHeight = 510.0;
+PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds, bool includeWindowArrangement) {
+    constexpr auto preferredWidth = 720.0;
+    const auto preferredHeight = includeWindowArrangement ? 362.0 : 302.0;
     constexpr auto outerMargin     = 28.0;
 
     const auto width  = std::max(1.0, std::min(preferredWidth, monitorBounds.width - outerMargin * 2.0));
@@ -26,69 +26,83 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds) {
     };
 
     const auto verticalScale = std::clamp(height / preferredHeight, 0.54, 1.0);
-    const auto rowHeight = 46.0 * verticalScale;
-    const auto rowX     = panel.x + 28.0;
-    const auto rowWidth = std::max(1.0, panel.width - 56.0);
-    const std::array rowOffsets{102.0, 157.0, 242.0, 297.0};
-    const std::array controls{
-        PreferenceControl::WorkspaceView,
-        PreferenceControl::WindowView,
-        PreferenceControl::Motion,
-        PreferenceControl::Accent,
-    };
+    const auto rowHeight     = 52.0 * verticalScale;
+    const auto rowGap        = 8.0 * verticalScale;
+    const auto rowX          = panel.x + 22.0;
+    const auto rowWidth      = std::max(1.0, panel.width - 44.0);
+    std::vector<PreferenceControl> controls{PreferenceControl::WorkspaceView};
+    if (includeWindowArrangement)
+        controls.push_back(PreferenceControl::WindowView);
+    controls.push_back(PreferenceControl::Motion);
+    controls.push_back(PreferenceControl::Accent);
 
     PreferencesPanelFrame frame{
         .panel = panel,
         .closeButton = {
-            .x      = panel.x + panel.width - 48.0,
-            .y      = panel.y + 20.0,
-            .width  = 26.0,
-            .height = 26.0,
+            .x      = panel.x + panel.width - 38.0,
+            .y      = panel.y + 12.0,
+            .width  = 24.0,
+            .height = 24.0,
         },
         .rows            = {},
         .options         = {},
         .appExposeButton = {},
     };
-    for (std::size_t i = 0; i < frame.rows.size(); ++i) {
-        frame.rows[i] = {
-            .control = controls[i],
+    frame.rows.reserve(controls.size());
+    for (std::size_t index = 0; index < controls.size(); ++index) {
+        frame.rows.push_back({
+            .control = controls[index],
             .rect = {
                 .x      = rowX,
-                .y      = panel.y + rowOffsets[i] * verticalScale,
+                .y      = panel.y + 46.0 * verticalScale + static_cast<double>(index) * (rowHeight + rowGap),
                 .width  = rowWidth,
                 .height = rowHeight,
             },
-        };
+        });
     }
 
-    constexpr std::array optionCounts{3, 3, 7, 4};
-    std::size_t optionIndex = 0;
-    for (std::size_t rowIndex = 0; rowIndex < frame.rows.size(); ++rowIndex) {
-        const auto& row = frame.rows[rowIndex];
-        const auto optionCount = optionCounts[rowIndex];
-        constexpr auto optionGap = 5.0;
-        const auto optionsX = row.rect.x + std::min(238.0, row.rect.width * 0.42);
+    const auto optionCountFor = [](PreferenceControl control) {
+        switch (control) {
+        case PreferenceControl::WorkspaceView:
+        case PreferenceControl::WindowView:
+            return 3;
+        case PreferenceControl::Motion:
+            return 7;
+        case PreferenceControl::Accent:
+            return 4;
+        case PreferenceControl::None:
+        case PreferenceControl::AppExpose:
+        case PreferenceControl::Close:
+            return 0;
+        }
+        return 0;
+    };
+    frame.options.reserve(includeWindowArrangement ? 17 : 14);
+    for (const auto& row : frame.rows) {
+        const auto optionCount = optionCountFor(row.control);
+        constexpr auto optionGap = 6.0;
+        const auto optionsX = row.rect.x + std::min(154.0, row.rect.width * 0.24);
         const auto optionsWidth = std::max(1.0, row.rect.x + row.rect.width - optionsX);
         const auto optionWidth = std::max(1.0, (optionsWidth - optionGap * static_cast<double>(optionCount - 1)) / static_cast<double>(optionCount));
         for (int value = 0; value < optionCount; ++value) {
-            frame.options[optionIndex++] = {
+            frame.options.push_back({
                 .control = row.control,
                 .value   = value,
                 .rect = {
                     .x = optionsX + static_cast<double>(value) * (optionWidth + optionGap),
-                    .y = row.rect.y + 7.0,
+                    .y = row.rect.y + 8.0 * verticalScale,
                     .width = optionWidth,
-                    .height = row.rect.height - 14.0,
+                    .height = row.rect.height - 16.0 * verticalScale,
                 },
-            };
+            });
         }
     }
 
     frame.appExposeButton = {
         .x      = rowX,
-        .y      = panel.y + panel.height - 82.0,
+        .y      = panel.y + panel.height - 56.0 * verticalScale,
         .width  = rowWidth,
-        .height = 34.0,
+        .height = 34.0 * verticalScale,
     };
     return frame;
 }

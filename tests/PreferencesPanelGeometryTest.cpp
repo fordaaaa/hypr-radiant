@@ -1,5 +1,6 @@
 #include <hypr-radiant/overview/PreferencesPanelGeometry.hpp>
 
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 
@@ -10,9 +11,22 @@ namespace {
 void centersPreferredPanelOnLargeMonitor() {
     const auto frame = computePreferencesPanel({.width = 1920.0, .height = 1080.0});
     assert(frame.panel.width == 720.0);
-    assert(frame.panel.height == 510.0);
+    assert(frame.panel.height == 362.0);
     assert(frame.panel.x == 600.0);
-    assert(frame.panel.y == 285.0);
+    assert(frame.panel.y == 359.0);
+}
+
+void wallAndCarouselOmitWindowArrangement() {
+    const auto frame = computePreferencesPanel({.width = 1920.0, .height = 1080.0}, false);
+    assert(frame.panel.height == 302.0);
+    assert(frame.rows.size() == 3);
+    assert(frame.options.size() == 14);
+    assert(std::ranges::none_of(frame.rows, [](const PreferenceRow& row) {
+        return row.control == PreferenceControl::WindowView;
+    }));
+    assert(std::ranges::none_of(frame.options, [](const PreferenceOption& option) {
+        return option.control == PreferenceControl::WindowView;
+    }));
 }
 
 void staysInsideSmallMonitor() {
@@ -42,6 +56,7 @@ void identifiesEveryControl() {
 int main() {
     centersPreferredPanelOnLargeMonitor();
     staysInsideSmallMonitor();
+    wallAndCarouselOmitWindowArrangement();
     identifiesEveryControl();
     std::cout << "PreferencesPanelGeometryTest passed\n";
     return 0;

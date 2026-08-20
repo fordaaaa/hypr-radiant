@@ -99,10 +99,12 @@ class OverlayRenderer {
     struct StageContext {
         double     contentAlpha;
         double     stageAlpha;
+        double     entranceTransition;
         double     selectionTransition;
-        CHyprColor accent;
-        CHyprColor stageSurface;
-        CHyprColor railSurface;
+        MotionPreference motion;
+        CHyprColor       accent;
+        CHyprColor       stageSurface;
+        CHyprColor       railSurface;
         LayoutRect displayedStageBounds;
         LayoutRect pushedStageBounds;
     };

@@ -41,7 +41,7 @@ struct PointerAction {
 
 class OverlayRenderer {
   public:
-    OverlayRenderer(const RadiantConfig& config, PreferencesStore& preferences);
+    OverlayRenderer(RadiantConfig& config, PreferencesStore& preferences);
 
     void install();
     void uninstall();
@@ -174,7 +174,7 @@ class OverlayRenderer {
         LayoutRect    to;
     };
 
-    const RadiantConfig&                                  m_config;
+    RadiantConfig&                                        m_config;
     PreferencesStore&                                     m_preferences;
     FadeAnimation                                      m_animation;
     FadeAnimation                                      m_stageTransition;

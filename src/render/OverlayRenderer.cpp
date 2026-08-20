@@ -297,7 +297,7 @@ WorkspaceWallOptions layoutOptionsFor(LayoutMode mode, std::int64_t previewWorks
 
 } // namespace
 
-OverlayRenderer::OverlayRenderer(const RadiantConfig& config, PreferencesStore& preferences) :
+OverlayRenderer::OverlayRenderer(RadiantConfig& config, PreferencesStore& preferences) :
     m_config(config), m_preferences(preferences), m_labels(config) {}
 
 void OverlayRenderer::install() {
@@ -814,6 +814,11 @@ void OverlayRenderer::togglePreferences() {
 
     m_preferencesVisible = !m_preferencesVisible;
     if (m_preferencesVisible) {
+        // Quattro swaps the active theme directory atomically. Re-read it at the point the panel
+        // appears as well as when the overview opens, so Ctrl+, cannot retain colors from the theme
+        // that happened to be active at session start.
+        m_config.refreshPalette();
+        m_labels.clear();
         if (m_preferencesMonitorId == -1) {
             if (const auto* frame = frameForSelectedTarget())
                 m_preferencesMonitorId = frame->monitorId;

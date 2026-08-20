@@ -2,6 +2,8 @@
 
 #include <cassert>
 #include <cmath>
+#include <cstdlib>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -9,6 +11,7 @@ namespace {
 using hypr_radiant::isLightPalette;
 using hypr_radiant::liftedSurface;
 using hypr_radiant::OmarchyPalette;
+using hypr_radiant::omarchyPalettePath;
 using hypr_radiant::parseOmarchyPalette;
 
 constexpr std::string_view OSAKA_JADE = R"(accent = "#509475"
@@ -92,6 +95,19 @@ void preservesAlphaAndClampsLift() {
     assert(lifted.red <= 1.0F && lifted.red >= 0.999F);
 }
 
+void pointsAtQuattroStateDirectory() {
+    const auto* previousHome = std::getenv("HOME");
+    const auto  savedHome    = previousHome ? std::string{previousHome} : std::string{};
+
+    setenv("HOME", "/tmp/hypr-radiant-palette-test", 1);
+    assert(omarchyPalettePath() == "/tmp/hypr-radiant-palette-test/.local/state/omarchy/current/theme/colors.toml");
+
+    if (previousHome)
+        setenv("HOME", savedHome.c_str(), 1);
+    else
+        unsetenv("HOME");
+}
+
 } // namespace
 
 int main() {
@@ -101,5 +117,6 @@ int main() {
     detectsLightAndDarkThemes();
     liftsAwayFromTheBackgroundInBothDirections();
     preservesAlphaAndClampsLift();
+    pointsAtQuattroStateDirectory();
     return 0;
 }

@@ -22,10 +22,10 @@ struct OmarchyPalette {
 /// Unrecognised or malformed keys keep their neutral gray default.
 [[nodiscard]] OmarchyPalette parseOmarchyPalette(std::string_view contents);
 
-/// Path consulted by loadOmarchyPalette(). Empty when `$HOME` is unset.
+/// Preferred Omarchy Quattro palette path. Empty when `$HOME` is unset.
 [[nodiscard]] std::string omarchyPalettePath();
 
-/// Reads the active theme palette, falling back to neutral gray when unavailable.
+/// Reads Quattro's active theme palette, with an Omarchy 3 path fallback, then neutral gray.
 [[nodiscard]] OmarchyPalette loadOmarchyPalette();
 
 /// True when the palette reads as a light theme, so surfaces must darken rather than lighten.

@@ -1,6 +1,7 @@
 #include <hypr-radiant/config/OmarchyPalette.hpp>
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -8,7 +9,8 @@
 namespace hypr_radiant {
 namespace {
 
-constexpr std::string_view PALETTE_RELATIVE_PATH = "/.config/omarchy/current/theme/colors.toml";
+constexpr std::string_view QUATTRO_PALETTE_RELATIVE_PATH = "/.local/state/omarchy/current/theme/colors.toml";
+constexpr std::string_view LEGACY_PALETTE_RELATIVE_PATH  = "/.config/omarchy/current/theme/colors.toml";
 
 std::string_view trim(std::string_view value) {
     while (!value.empty() && (value.front() == ' ' || value.front() == '\t' || value.front() == '\r'))
@@ -68,21 +70,29 @@ std::string omarchyPalettePath() {
     if (home == nullptr || *home == '\0')
         return {};
 
-    return std::string{home} + std::string{PALETTE_RELATIVE_PATH};
+    return std::string{home} + std::string{QUATTRO_PALETTE_RELATIVE_PATH};
 }
 
 OmarchyPalette loadOmarchyPalette() {
-    const auto path = omarchyPalettePath();
-    if (path.empty())
+    const auto* home = std::getenv("HOME");
+    if (home == nullptr || *home == '\0')
         return {};
 
-    std::ifstream file{path};
-    if (!file)
-        return {};
+    const std::array paths{
+        std::string{home} + std::string{QUATTRO_PALETTE_RELATIVE_PATH},
+        std::string{home} + std::string{LEGACY_PALETTE_RELATIVE_PATH},
+    };
+    for (const auto& path : paths) {
+        std::ifstream file{path};
+        if (!file)
+            continue;
 
-    std::ostringstream buffer;
-    buffer << file.rdbuf();
-    return parseOmarchyPalette(buffer.str());
+        std::ostringstream buffer;
+        buffer << file.rdbuf();
+        return parseOmarchyPalette(buffer.str());
+    }
+
+    return {};
 }
 
 bool isLightPalette(const OmarchyPalette& palette) {

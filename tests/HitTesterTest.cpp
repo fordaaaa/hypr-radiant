@@ -267,8 +267,8 @@ void carouselNavigationUsesLogicalOrderAndIncludesCreateTarget() {
 
 void ribbonBladesPromoteWorkspacesInsteadOfTheirWindows() {
     auto testFrame = frame();
-    testFrame.carousel          = true;
-    testFrame.ribbon            = true;
+    testFrame.carousel           = true;
+    testFrame.ribbon             = true;
     testFrame.previewWorkspaceId = 2;
 
     const auto blade = HitTester{}.hitTest(testFrame, 40, 40);

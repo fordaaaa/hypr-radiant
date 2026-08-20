@@ -67,7 +67,12 @@ void parsesDistinctAnimationProfiles() {
 
 void validatesNativeThemeSlugs() {
     assert(parsePreferences("native_theme = osaka-jade\n").nativeTheme == "osaka-jade");
+    assert(parsePreferences("native_theme = solarized_dark\n").nativeTheme == "solarized_dark");
+    assert(parsePreferences("native_theme = gruvbox.dark\n").nativeTheme == "gruvbox.dark");
+    assert(parsePreferences("native_theme = current\n").nativeTheme == "current");
+    assert(parsePreferences("native_theme = config\n").nativeTheme == "config");
     assert(parsePreferences("native_theme = auto\n").nativeTheme.empty());
+    assert(parsePreferences("native_theme = .hidden\n").nativeTheme.empty());
     assert(parsePreferences("native_theme = ../../outside\n").nativeTheme.empty());
     assert(parsePreferences("native_theme = Tokyo-Night\n").nativeTheme.empty());
 }

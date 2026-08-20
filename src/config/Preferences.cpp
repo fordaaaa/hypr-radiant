@@ -18,10 +18,10 @@ std::string_view trim(std::string_view value) {
 }
 
 std::string themeSlug(std::string_view value) {
-    if (value == "auto" || value == "current" || value == "config")
+    if (value == "auto")
         return {};
-    if (value.empty() || !std::ranges::all_of(value, [](unsigned char character) {
-            return std::islower(character) || std::isdigit(character) || character == '-';
+    if (value.empty() || value.front() == '.' || !std::ranges::all_of(value, [](unsigned char character) {
+            return std::islower(character) || std::isdigit(character) || character == '-' || character == '_' || character == '.';
        }))
         return {};
     return std::string{value};

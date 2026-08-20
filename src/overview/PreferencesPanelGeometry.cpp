@@ -16,7 +16,7 @@ PreferencesPanelFrame computePreferencesPanel(
     const auto showNativeThemes = nativeThemeOptionCount > 0;
     const auto preferredWidth = showNativeThemes ? 820.0 : 720.0;
     const auto preferredHeight = showNativeThemes ? includeWindowArrangement ? 362.0 : 302.0 : includeWindowArrangement ? 302.0
-                                                                                                             : 242.0;
+                                                                                                           : 242.0;
     constexpr auto outerMargin     = 28.0;
 
     const auto width  = std::max(1.0, std::min(preferredWidth, monitorBounds.width - outerMargin * 2.0));

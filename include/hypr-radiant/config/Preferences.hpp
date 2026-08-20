@@ -34,7 +34,7 @@ enum class MotionPreference {
 struct PreferencesState {
     WorkspaceViewPreference workspaceView = WorkspaceViewPreference::FollowConfig;
     WindowViewPreference    windowView    = WindowViewPreference::Spatial;
-    MotionPreference        motion        = MotionPreference::FollowConfig;
+    MotionPreference motion = MotionPreference::FollowConfig;
     /// Empty follows the desktop's active Omarchy theme. Otherwise this is an installed theme
     /// slug whose palette is applied to Radiant only.
     std::string nativeTheme;

@@ -152,10 +152,9 @@ While it is open, swipe left or right to preview the next workspace. Set
 
 Press `Ctrl+,` while the overview is open. The native Omarchy-style panel controls:
 
-- Stage, Workspace Wall, or the Quattro-inspired Workspace Carousel
+- Stage, Workspace Wall, Workspace Carousel, or the Omarchy-inspired Ribbon
 - In Stage, Spatial, application-grouped, or hero-and-supporting Deck window arrangement
 - Default, Snap, Glitch, Lightcycle, Silk, Reduced, or Off overview animations
-- Theme accent or an explicit green, blue or violet accent
 - Any installed Omarchy theme for Radiant, without changing the desktop theme
 - App Exposé for the focused application
 
@@ -192,7 +191,7 @@ With the mouse:
 - Hover a workspace or window to move the selection; a short accent trace resolves into corner
   locks on the chosen card
 - Click a workspace to switch to it, click a window to focus it
-- Drag a window onto a workspace card in Stage, Wall, or Carousel to move it there: the card lifts and follows
+- Drag a window onto a workspace card in Stage, Wall, Carousel, or Ribbon to move it there: the card lifts and follows
   the pointer, the workspace under it runs the destination lock, and the drop settles the card into
   place. Releasing over the window's own workspace, or over nothing, sends it back where it came from
 - Drag a window onto the trailing `+`, or just click it, to create a workspace

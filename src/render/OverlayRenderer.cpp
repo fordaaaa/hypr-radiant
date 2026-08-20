@@ -512,8 +512,7 @@ void OverlayRenderer::moveSelection(NavigationDirection direction) {
         m_stageTransitionMonitorId = frameMonitorId;
         m_stageTransition.hideImmediate();
         // Ribbon snaps like the theme picker; the other layouts keep their roomier depth push.
-        const auto pushScale = effectiveLayoutMode() == LayoutMode::Ribbon ?
-            RIBBON_WORKSPACE_PUSH_SCALE : WORKSPACE_PUSH_SCALE;
+        const auto pushScale = effectiveLayoutMode() == LayoutMode::Ribbon ? RIBBON_WORKSPACE_PUSH_SCALE : WORKSPACE_PUSH_SCALE;
         m_stageTransition.animateTo(true,
             std::max(0, static_cast<int>(std::round(effectiveAnimationDurationMs() * pushScale))));
     }
@@ -548,8 +547,7 @@ void OverlayRenderer::selectTargetAt(double x, double y) {
     m_selectedTarget = target;
     m_selectedFrameMonitorId = frameMonitorId;
     animateSelection();
-    if (!m_searchActive && (effectiveLayoutMode() == LayoutMode::Stage || effectiveLayoutMode() == LayoutMode::Carousel ||
-            effectiveLayoutMode() == LayoutMode::Ribbon) &&
+    if (!m_searchActive && (effectiveLayoutMode() == LayoutMode::Stage || effectiveLayoutMode() == LayoutMode::Carousel || effectiveLayoutMode() == LayoutMode::Ribbon) &&
         target.workspaceId != previousWorkspace) {
         // A push still in flight on this monitor means the pointer is skimming the rail rather than
         // settling on a card. Restarting from zero for every card it crosses meant a fast sweep
@@ -567,8 +565,7 @@ void OverlayRenderer::selectTargetAt(double x, double y) {
             m_stageTransitionMonitorId = frameMonitorId;
             m_stageTransition.hideImmediate();
             // Ribbon snaps like the theme picker; the other layouts keep their roomier depth push.
-            const auto pushScale = effectiveLayoutMode() == LayoutMode::Ribbon ?
-                RIBBON_WORKSPACE_PUSH_SCALE : WORKSPACE_PUSH_SCALE;
+            const auto pushScale = effectiveLayoutMode() == LayoutMode::Ribbon ? RIBBON_WORKSPACE_PUSH_SCALE : WORKSPACE_PUSH_SCALE;
             m_stageTransition.animateTo(true,
                 std::max(0, static_cast<int>(std::round(effectiveAnimationDurationMs() * pushScale))));
         }
@@ -1949,8 +1946,9 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
     const auto optionLabel = [this](PreferenceControl control, int value) -> std::string {
         switch (control) {
         case PreferenceControl::WorkspaceView:
-            return value == 0 ? "STAGE" : value == 1 ? "WALL" : value == 2 ? "CAROUSEL"
-                                                                             : "RIBBON";
+            return value == 0 ? "STAGE" : value == 1 ? "WALL"
+                                      : value == 2   ? "CAROUSEL"
+                                                     : "RIBBON";
         case PreferenceControl::WindowView:
             return value == 0 ? "SPATIAL" : value == 1 ? "GROUPED"
                                                        : "DECK";

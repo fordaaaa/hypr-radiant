@@ -46,6 +46,35 @@ double easedProgress(double value) {
     return clamped * clamped * (3.0 - 2.0 * clamped);
 }
 
+struct CarouselMotion {
+    double startScale;
+    double verticalTravel;
+    double horizontalTravel;
+    double staggerSpan;
+    bool   alternateHorizontal;
+    bool   sweepFromEdges;
+};
+
+constexpr CarouselMotion carouselMotion(MotionPreference preference) noexcept {
+    switch (preference) {
+    case MotionPreference::Quattro:
+        return {.startScale = 0.78, .verticalTravel = 0.0, .horizontalTravel = 0.0, .staggerSpan = 0.045, .alternateHorizontal = false, .sweepFromEdges = false};
+    case MotionPreference::Cyberpunk:
+        return {.startScale = 1.0, .verticalTravel = 8.0, .horizontalTravel = 64.0, .staggerSpan = 0.025, .alternateHorizontal = true, .sweepFromEdges = false};
+    case MotionPreference::Tron:
+        return {.startScale = 0.97, .verticalTravel = 10.0, .horizontalTravel = 220.0, .staggerSpan = 0.09, .alternateHorizontal = false, .sweepFromEdges = true};
+    case MotionPreference::Elegant:
+        return {.startScale = 0.88, .verticalTravel = 54.0, .horizontalTravel = 0.0, .staggerSpan = 0.18, .alternateHorizontal = false, .sweepFromEdges = false};
+    case MotionPreference::Off:
+        return {.startScale = 1.0, .verticalTravel = 0.0, .horizontalTravel = 0.0, .staggerSpan = 0.0, .alternateHorizontal = false, .sweepFromEdges = false};
+    case MotionPreference::FollowConfig:
+    case MotionPreference::Reduced:
+        // The Default composition intentionally matches Radiant's original card entrance exactly.
+        return {.startScale = 0.94, .verticalTravel = 12.0, .horizontalTravel = 0.0, .staggerSpan = 0.13, .alternateHorizontal = false, .sweepFromEdges = false};
+    }
+    return {.startScale = 0.94, .verticalTravel = 12.0, .horizontalTravel = 0.0, .staggerSpan = 0.13, .alternateHorizontal = false, .sweepFromEdges = false};
+}
+
 CBox boxFor(const LayoutRect& rect) {
     return CBox{std::round(rect.x), std::round(rect.y), std::round(rect.width), std::round(rect.height)};
 }
@@ -284,7 +313,7 @@ WorkspaceWallOptions layoutOptionsFor(LayoutMode mode, std::int64_t previewWorks
 
     if (mode == LayoutMode::Carousel) {
         return WorkspaceWallOptions{
-            .minimumWorkspaceSlots = 5,
+            .minimumWorkspaceSlots = 0,
             .outerPadding          = 112.0,
             .cardGap               = 24.0,
             .windowGap             = 10.0,
@@ -1378,43 +1407,24 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
     const auto pressDip = m_pointerDown && !m_dragging && m_pointerDownTarget.type == OverviewTargetType::Window
         ? easedProgress(m_pressTransition.value())
                           : 0.0;
+    const auto motion = m_preferences.state().motion;
+    const auto carouselEntrance = carouselMotion(motion);
     std::optional<LayoutRect> draggedSlot;
 
-    double contentLeft   = frame.bounds.width;
-    double contentTop    = frame.bounds.height;
-    bool   hasContent    = false;
-    for (const auto& workspace : frame.workspaces) {
-        if (workspace.rect.width <= 0.0 || workspace.rect.height <= 0.0)
-            continue;
-        contentLeft   = std::min(contentLeft, workspace.rect.x);
-        contentTop    = std::min(contentTop, workspace.rect.y);
-        hasContent    = true;
-    }
-
-    if (frame.carousel) {
-        const auto focusedWorkspace = std::ranges::find_if(frame.workspaces, [&frame](const WorkspaceCard& workspace) {
-            return workspace.workspaceId == frame.previewWorkspaceId;
-        });
-        if (focusedWorkspace != frame.workspaces.end()) {
-            contentLeft = focusedWorkspace->rect.x;
-            contentTop  = focusedWorkspace->rect.y;
+    if (!frame.carousel) {
+        auto contentLeft = frame.bounds.width;
+        auto contentTop  = frame.bounds.height;
+        auto hasContent  = false;
+        for (const auto& workspace : frame.workspaces) {
+            if (workspace.rect.width <= 0.0 || workspace.rect.height <= 0.0)
+                continue;
+            contentLeft = std::min(contentLeft, workspace.rect.x);
+            contentTop  = std::min(contentTop, workspace.rect.y);
+            hasContent  = true;
         }
-    }
-
-    const auto titleX = hasContent ? std::max(38.0, contentLeft) : 46.0;
-    const auto titleY = hasContent ? std::max(30.0, contentTop - 58.0) : 30.0;
-
-    const auto headingY = titleY + (1.0 - entrance) * 10.0;
-    if (frame.carousel) {
-        const auto slotCount = frame.workspaces.empty() ? 0 : frame.workspaces.size() - 1;
-        const auto hudWidth  = std::min(frame.bounds.width * 0.58, 620.0);
-        drawRect(CBox{titleX, headingY + 8.0, 7.0, 7.0}, withAlpha(accentLit, headingAlpha * 0.94), damage, 1);
-        drawRect(CBox{titleX + 12.0, headingY + 10.0, 3.0, 3.0}, withAlpha(accent, headingAlpha * 0.48), damage, 1);
-        drawRect(CBox{titleX + 24.0, headingY + 11.0, std::max(1.0, hudWidth - 112.0), 1.0},
-            withAlpha(accent, headingAlpha * 0.30), damage, 1);
-        m_labels.renderColored(std::format("{:02} // +", slotCount), titleX + hudWidth - 76.0, headingY + 1.0,
-            76.0, Theme::badgeSize(), foreground, headingAlpha * 0.62, damage);
-    } else {
+        const auto titleX = hasContent ? std::max(38.0, contentLeft) : 46.0;
+        const auto titleY = hasContent ? std::max(30.0, contentTop - 58.0) : 30.0;
+        const auto headingY = titleY + (1.0 - entrance) * 10.0;
         m_labels.renderColored("WORKSPACES", titleX, headingY, std::max(1.0, frame.bounds.width * 0.45),
             Theme::titleSize(), accentLit, headingAlpha, damage);
     }
@@ -1433,14 +1443,15 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         const auto ownsSelection = frame.monitorId == m_selectedFrameMonitorId &&
             m_selectedTarget.workspaceId == workspace.workspaceId;
         const auto workspaceSelected = ownsSelection &&
-            sameTarget(m_selectedTarget, {.type = OverviewTargetType::Workspace, .workspaceId = workspace.workspaceId});
+            (m_selectedTarget.type == OverviewTargetType::Workspace || m_selectedTarget.type == OverviewTargetType::NewWorkspace);
         const auto carouselFocused = frame.carousel && workspace.workspaceId == frame.previewWorkspaceId;
         const auto carouselThumbnail = frame.carousel && !carouselFocused;
         const auto compact = carouselThumbnail ? workspace.rect.width <= 110.0 || workspace.rect.height <= 70.0 :
                                                   workspace.rect.width <= 140.0 || workspace.rect.height <= 120.0;
         const auto round        = compact ? 14 : 18;
+        const auto staggerSpan  = frame.carousel ? carouselEntrance.staggerSpan : 0.13;
         const auto stagger      = frame.workspaces.size() <= 1 ? 0.0 :
-            static_cast<double>(workspaceIndex) / static_cast<double>(frame.workspaces.size() - 1) * 0.13;
+            static_cast<double>(workspaceIndex) / static_cast<double>(frame.workspaces.size() - 1) * staggerSpan;
         const auto cardEntrance = easedProgress((entrance - stagger) / std::max(0.01, 1.0 - stagger));
         const auto hoverLift    = ownsSelection ? selection : 0.0;
         // The workspace the carried card would land on rises to meet it, so the destination is
@@ -1450,18 +1461,30 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         const auto drop         = dropTarget ? dropGlow : 0.0;
         auto baseRect = workspace.rect;
         if (previousCarouselFrame && entrance < 1.0) {
-            const auto previousWorkspace = std::ranges::find_if(previousCarouselFrame->workspaces, [&workspace](const WorkspaceCard& candidate) {
-                return candidate.workspaceId == workspace.workspaceId;
-            });
+            const auto previousWorkspace = std::ranges::lower_bound(
+                previousCarouselFrame->workspaces, workspace.workspaceId, {}, &WorkspaceCard::workspaceId);
             if (previousWorkspace != previousCarouselFrame->workspaces.end())
                 baseRect = interpolatedRect(previousWorkspace->rect, workspace.rect, entrance);
         }
+        const auto startScale = frame.carousel ? carouselEntrance.startScale : 0.94;
         auto       displayRect  = scaledAroundCenter(baseRect,
-            std::lerp(0.94, 1.0, cardEntrance) * std::lerp(1.0, workspaceSelected ? 1.018 : 1.006, hoverLift) * std::lerp(1.0, 1.03, drop),
+            std::lerp(startScale, 1.0, cardEntrance) * std::lerp(1.0, workspaceSelected ? 1.018 : 1.006, hoverLift) * std::lerp(1.0, 1.03, drop),
             -std::lerp(0.0, workspaceSelected ? 7.0 : 3.0, hoverLift) - 6.0 * drop);
-        displayRect.y += (1.0 - cardEntrance) * (frame.carousel ? 12.0 : 28.0 + static_cast<double>(workspaceIndex % 3) * 7.0);
+        const auto unresolved = 1.0 - cardEntrance;
+        displayRect.y += unresolved * (frame.carousel ? carouselEntrance.verticalTravel :
+                                                        28.0 + static_cast<double>(workspaceIndex % 3) * 7.0);
+        if (frame.carousel && carouselEntrance.alternateHorizontal) {
+            const auto direction = workspaceIndex % 2 == 0 ? -1.0 : 1.0;
+            displayRect.x += unresolved * carouselEntrance.horizontalTravel * direction;
+        } else if (frame.carousel && carouselEntrance.sweepFromEdges) {
+            const auto cardCenter = workspace.rect.x + workspace.rect.width / 2.0;
+            const auto screenCenter = frame.bounds.width / 2.0;
+            const auto direction = std::abs(cardCenter - screenCenter) < 1.0 ? 1.0 : cardCenter < screenCenter ? -1.0
+                                                                                                : 1.0;
+            displayRect.x += unresolved * carouselEntrance.horizontalTravel * direction;
+        }
         const auto workspaceBox = boxFor(displayRect);
-        const auto cardAlpha    = contentAlpha * cardEntrance * (carouselThumbnail ? 0.88 : 1.0);
+        const auto cardAlpha    = contentAlpha * cardEntrance * (carouselThumbnail ? 0.80 : 1.0);
         const auto detailAlpha  = cardAlpha * typographyFade;
 
         if ((ownsSelection || workspace.active || carouselFocused) && !compact) {
@@ -1477,8 +1500,10 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
         }
 
         const auto shadowLift = workspaceSelected ? 9.0 * selection : ownsSelection ? 4.0 * selection : 0.0;
-        drawRect(CBox{workspaceBox.x + 5.0, workspaceBox.y + 7.0 + shadowLift * 0.30, workspaceBox.w, workspaceBox.h},
-            withAlpha(Theme::shadowColor(), cardAlpha * (0.34 + hoverLift * 0.12)), damage, round + 2);
+        if (!carouselThumbnail) {
+            drawRect(CBox{workspaceBox.x + 5.0, workspaceBox.y + 7.0 + shadowLift * 0.30, workspaceBox.w, workspaceBox.h},
+                withAlpha(Theme::shadowColor(), cardAlpha * (0.34 + hoverLift * 0.12)), damage, round + 2);
+        }
 
         const auto surfaceLift = workspace.createTarget ? 0.075F : workspace.empty ? 0.085F :
             carouselFocused ? 0.155F : workspaceSelected ? static_cast<float>(0.145 + selection * 0.035) :
@@ -1490,16 +1515,28 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
             cardSurface = tintedSurface(cardSurface, accent, 0.22 * drop);
         drawRect(workspaceBox, cardSurface, damage, round, true);
 
-        // Hairlines establish the card edge; state is carried by a short coloured rail instead of
-        // a thick neon frame. Window hover intentionally does not outline its whole workspace.
+        // Hairlines establish the card edge. The focused carousel card uses small corner locks as
+        // its only bright signal, echoing Quattro's restrained theme-switcher selection state.
         drawBorder(workspaceBox, withAlpha(foreground, cardAlpha * 0.065), round, 1);
         if (carouselFocused) {
             drawBorder(workspaceBox, withAlpha(accentLit, cardAlpha * 0.62), withAlpha(accent, cardAlpha * 0.18),
                 2.62F, static_cast<float>(cardAlpha * 0.76), round, 2);
-            drawRect(CBox{workspaceBox.x + 18.0, workspaceBox.y, std::min(112.0, workspaceBox.w * 0.24), 2.0},
-                withAlpha(accentLit, cardAlpha * 0.92), damage, 1);
         }
-        if (workspace.active) {
+
+        // Triangle pulse avoids transcendental work in the per-card render path while keeping the
+        // same zero-at-ends, brightest-at-midpoint signal envelope.
+        const auto entranceSignal = 1.0 - std::abs(cardEntrance * 2.0 - 1.0);
+        if (frame.carousel && motion == MotionPreference::Cyberpunk && entranceSignal > 0.001) {
+            const auto ghostOffset = workspaceIndex % 2 == 0 ? -10.0 : 10.0;
+            const auto ghostBox = CBox{workspaceBox.x + ghostOffset * entranceSignal, workspaceBox.y,
+                workspaceBox.w, workspaceBox.h};
+            drawBorder(ghostBox, withAlpha(accentLit, cardAlpha * 0.20 * entranceSignal), round, 1);
+        } else if (frame.carousel && motion == MotionPreference::Tron && entranceSignal > 0.001) {
+            const auto scanX = workspaceBox.x + workspaceBox.w * cardEntrance;
+            drawRect(CBox{scanX, workspaceBox.y + 5.0, 2.0, std::max(1.0, workspaceBox.h - 10.0)},
+                withAlpha(accentLit, cardAlpha * 0.62 * entranceSignal), damage, 1);
+        }
+        if (workspace.active && !frame.carousel) {
             const auto railWidth = std::min(48.0, workspaceBox.w * 0.18);
             drawRect(CBox{workspaceBox.x + 16.0, workspaceBox.y, railWidth, 1.0},
                 withAlpha(accent, cardAlpha * 0.58), damage, 1);
@@ -1531,15 +1568,7 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
                                                                  : 0.82),
             damage);
 
-        if (carouselFocused) {
-            const auto status = workspace.active ? "ACTIVE" : "PREVIEW";
-            const auto statusWidth = std::min(154.0, std::max(1.0, workspaceBox.w * 0.26));
-            m_labels.renderColored(status, workspaceBox.x + workspaceBox.w - statusWidth - 15.0,
-                workspaceBox.y + 11.0, statusWidth, Theme::badgeSize(), accentLit, detailAlpha * 0.86, damage);
-        }
-
         if (workspace.empty) {
-            const auto emptyLabel = workspace.createTarget ? "CREATE" : "EMPTY";
             const auto markerSize = carouselFocused ? 42.0 : compact ? 20.0 : 30.0;
             const auto centerX = workspaceBox.x + workspaceBox.w / 2.0;
             const auto centerY = workspaceBox.y + headerHeight + (workspaceBox.h - headerHeight) * 0.45;
@@ -1547,11 +1576,10 @@ void OverlayRenderer::renderFrame(const WorkspaceWallFrame& frame, double alpha,
                 withAlpha(workspace.createTarget ? accentLit : foreground, cardAlpha * (workspace.createTarget ? 0.58 : 0.16)), damage, 1);
             drawRect(CBox{centerX, centerY - markerSize / 2.0, 1.0, markerSize},
                 withAlpha(workspace.createTarget ? accentLit : foreground, cardAlpha * (workspace.createTarget ? 0.58 : 0.16)), damage, 1);
-            if (!compact) {
-                m_labels.renderCentered(emptyLabel,
+            if (!compact && workspace.createTarget) {
+                m_labels.renderCentered("CREATE",
                     CBox{workspaceBox.x + 10.0, centerY + markerSize / 2.0 + 8.0, std::max(1.0, workspaceBox.w - 20.0), 24.0},
-                    Theme::badgeSize(), workspace.createTarget ? accentLit : foreground,
-                    detailAlpha * (workspace.createTarget ? 0.88 : 0.42), damage);
+                    Theme::badgeSize(), accentLit, detailAlpha * 0.88, damage);
             }
         }
 
@@ -1788,7 +1816,7 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
     const std::array rowLabels{
         "01  workspace.layout",
         "02  windows.arrangement",
-        "03  motion.profile",
+        "03  overview.animations",
         "04  interface.accent",
     };
 
@@ -1835,8 +1863,9 @@ void OverlayRenderer::renderPreferencesPanel(const WorkspaceWallFrame& frame, do
             return value == 0 ? "SPATIAL" : value == 1 ? "GROUPED"
                                                        : "DECK";
         case PreferenceControl::Motion: {
-            static constexpr std::array labels{"DEFAULT", "QUATTRO", "REDUCED", "OFF"};
-            return labels[static_cast<std::size_t>(std::clamp(value, 0, 3))];
+            static constexpr std::array labels{
+                "DEFAULT", "SNAP", "GLITCH", "LIGHT", "SILK", "REDUCED", "OFF"};
+            return labels[static_cast<std::size_t>(std::clamp(value, 0, 6))];
         }
         case PreferenceControl::Accent: {
                 static constexpr std::array labels{"THEME", "GREEN", "BLUE", "VIOLET"};
@@ -2549,6 +2578,9 @@ PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int va
     }
 
     auto& state = m_preferences.state();
+    const auto adjacent = [step](int current, int count) {
+        return ((current + step) % count + count) % count;
+    };
     switch (control) {
     case PreferenceControl::WorkspaceView:
         if (value == 0)
@@ -2557,12 +2589,14 @@ PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int va
             state.workspaceView = WorkspaceViewPreference::WorkspaceWall;
         else if (value == 2)
             state.workspaceView = WorkspaceViewPreference::Carousel;
-        else if (effectiveLayoutMode() == LayoutMode::Stage)
-            state.workspaceView = WorkspaceViewPreference::WorkspaceWall;
-        else if (effectiveLayoutMode() == LayoutMode::WorkspaceWall)
-            state.workspaceView = WorkspaceViewPreference::Carousel;
-        else
-            state.workspaceView = WorkspaceViewPreference::Stage;
+        else {
+            auto current = 0;
+            if (effectiveLayoutMode() == LayoutMode::WorkspaceWall)
+                current = 1;
+            else if (effectiveLayoutMode() == LayoutMode::Carousel)
+                current = 2;
+            state.workspaceView = static_cast<WorkspaceViewPreference>(adjacent(current, 3) + 1);
+        }
         break;
     case PreferenceControl::WindowView:
         if (value == 0)
@@ -2571,21 +2605,14 @@ PointerAction OverlayRenderer::applyPreference(PreferenceControl control, int va
             state.windowView = WindowViewPreference::Grouped;
         else if (value == 2)
             state.windowView = WindowViewPreference::Deck;
-        else if (state.windowView == WindowViewPreference::Spatial)
-            state.windowView = WindowViewPreference::Grouped;
-        else if (state.windowView == WindowViewPreference::Grouped)
-            state.windowView = WindowViewPreference::Deck;
         else
-            state.windowView = WindowViewPreference::Spatial;
+            state.windowView = static_cast<WindowViewPreference>(adjacent(static_cast<int>(state.windowView), 3));
         break;
     case PreferenceControl::Motion:
-        if (value >= 0 && value <= 3)
+        if (value >= 0 && value <= 6)
             state.motion = static_cast<MotionPreference>(value);
-        else {
-            constexpr auto count = 4;
-            const auto current = static_cast<int>(state.motion);
-            state.motion = static_cast<MotionPreference>(((current + step) % count + count) % count);
-        }
+        else
+            state.motion = static_cast<MotionPreference>(adjacent(static_cast<int>(state.motion), 7));
         break;
     case PreferenceControl::Accent:
         if (value >= 0 && value <= 3)
@@ -2665,7 +2692,13 @@ int OverlayRenderer::effectiveAnimationDurationMs() const {
     const auto configured = m_config.animationDurationMs();
     switch (m_preferences.state().motion) {
     case MotionPreference::Quattro:
-        return std::min(2000, static_cast<int>(std::round(configured * 1.18)));
+        return std::min(2000, static_cast<int>(std::round(configured * 0.82)));
+    case MotionPreference::Cyberpunk:
+        return std::min(2000, static_cast<int>(std::round(configured * 1.22)));
+    case MotionPreference::Tron:
+        return std::min(2000, static_cast<int>(std::round(configured * 1.65)));
+    case MotionPreference::Elegant:
+        return std::min(2000, static_cast<int>(std::round(configured * 2.05)));
     case MotionPreference::Reduced:
         return std::min(configured, 90);
     case MotionPreference::Off:
@@ -2677,7 +2710,21 @@ int OverlayRenderer::effectiveAnimationDurationMs() const {
 }
 
 AnimationCurve OverlayRenderer::effectiveAnimationCurve() const {
-    return m_preferences.state().motion == MotionPreference::Quattro ? AnimationCurve::Quattro : AnimationCurve::Smooth;
+    switch (m_preferences.state().motion) {
+    case MotionPreference::Quattro:
+        return AnimationCurve::Quattro;
+    case MotionPreference::Cyberpunk:
+        return AnimationCurve::Cyberpunk;
+    case MotionPreference::Tron:
+        return AnimationCurve::Tron;
+    case MotionPreference::Elegant:
+        return AnimationCurve::Elegant;
+    case MotionPreference::FollowConfig:
+    case MotionPreference::Reduced:
+    case MotionPreference::Off:
+        return AnimationCurve::Smooth;
+    }
+    return AnimationCurve::Smooth;
 }
 
 void OverlayRenderer::applyMotionProfile() {

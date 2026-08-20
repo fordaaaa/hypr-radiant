@@ -39,7 +39,23 @@ motion = quattro
     assert(preferences.motion == MotionPreference::Quattro);
     assert(label(preferences.workspaceView) == "CAROUSEL");
     assert(label(preferences.windowView) == "DECK");
-    assert(label(preferences.motion) == "QUATTRO");
+    assert(label(preferences.motion) == "SNAP");
+}
+
+void parsesDistinctAnimationProfiles() {
+    assert(parsePreferences("motion = glitch\n").motion == MotionPreference::Cyberpunk);
+    assert(parsePreferences("motion = lightcycle\n").motion == MotionPreference::Tron);
+    assert(parsePreferences("motion = silk\n").motion == MotionPreference::Elegant);
+    assert(label(MotionPreference::Quattro) == "SNAP");
+    assert(label(MotionPreference::Cyberpunk) == "GLITCH");
+    assert(label(MotionPreference::Tron) == "LIGHTCYCLE");
+    assert(label(MotionPreference::Elegant) == "SILK");
+
+    // Previously saved profile names remain valid after the UI rename.
+    assert(parsePreferences("motion = quattro\n").motion == MotionPreference::Quattro);
+    assert(parsePreferences("motion = cyberpunk\n").motion == MotionPreference::Cyberpunk);
+    assert(parsePreferences("motion = tron\n").motion == MotionPreference::Tron);
+    assert(parsePreferences("motion = elegant\n").motion == MotionPreference::Elegant);
 }
 
 void ignoresUnknownKeysAndFallsBackOnUnknownValues() {
@@ -77,6 +93,7 @@ int main() {
     defaultsFollowExistingConfig();
     parsesEveryPreference();
     parsesQuattroPreferences();
+    parsesDistinctAnimationProfiles();
     ignoresUnknownKeysAndFallsBackOnUnknownValues();
     serializationRoundTrips();
     accentNavigationFollowsArrowDirectionAndWraps();

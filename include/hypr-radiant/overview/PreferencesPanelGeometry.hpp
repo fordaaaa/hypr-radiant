@@ -38,7 +38,7 @@ struct PreferencesPanelFrame {
     LayoutRect                   panel;
     LayoutRect                   closeButton;
     std::array<PreferenceRow, 4>  rows;
-    std::array<PreferenceOption, 14> options;
+    std::array<PreferenceOption, 17> options;
     LayoutRect                   appExposeButton;
 };
 

@@ -173,8 +173,37 @@ OverviewTarget HitTester::initialSelection(const WorkspaceWallFrame& frame) cons
 }
 
 OverviewTarget HitTester::moveSelection(const WorkspaceWallFrame& frame, OverviewTarget current, NavigationDirection direction) const {
-    auto targets = workspaceTargets(frame);
     const auto horizontal = direction == NavigationDirection::Left || direction == NavigationDirection::Right;
+
+    // Carousel cards are a logical sequence displayed as a centered hero with stacked side
+    // columns. Resolve horizontal motion directly from that sequence: this avoids both ambiguous
+    // geometry scoring and allocating a temporary target vector for every arrow or swipe.
+    if (frame.carousel && horizontal) {
+        const auto currentCard = std::ranges::find_if(frame.workspaces, [current](const WorkspaceCard& card) {
+            return card.workspaceId == current.workspaceId;
+        });
+        if (currentCard == frame.workspaces.end())
+            return initialSelection(frame);
+
+        auto index = static_cast<std::size_t>(std::distance(frame.workspaces.begin(), currentCard));
+        for (std::size_t attempts = 0; attempts < frame.workspaces.size(); ++attempts) {
+            if (direction == NavigationDirection::Left)
+                index = index == 0 ? frame.workspaces.size() - 1 : index - 1;
+            else
+                index = (index + 1) % frame.workspaces.size();
+
+            const auto& card = frame.workspaces[index];
+            if (selectable(card.rect))
+                return {
+                    .type = card.createTarget ? OverviewTargetType::NewWorkspace : OverviewTargetType::Workspace,
+                    .workspaceId = card.workspaceId,
+                    .monitorId = frame.monitorId,
+                };
+        }
+        return current;
+    }
+
+    auto targets = workspaceTargets(frame);
     if (horizontal) {
         std::erase_if(targets, [](OverviewTarget target) { return target.type == OverviewTargetType::NewWorkspace; });
         // Stepping the rail should land on workspaces that actually hold something. Empty slots are

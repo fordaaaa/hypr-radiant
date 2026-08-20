@@ -466,15 +466,14 @@ void newWorkspaceTargetAvoidsOtherMonitorIds() {
 void carouselCentersThePreviewAndShowsReadableSideColumns() {
     const auto state = sampleState();
     auto options = WorkspaceWallOptions{};
-    options.minimumWorkspaceSlots = 5;
-    options.carousel              = true;
-    options.previewWorkspaceId    = 2;
+    options.carousel           = true;
+    options.previewWorkspaceId = 2;
 
     const auto frame = WorkspaceWallLayout{}.compute(state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
 
     assert(frame.carousel);
     assert(frame.previewWorkspaceId == 2);
-    assert(frame.workspaces.size() == 6);
+    assert(frame.workspaces.size() == 3);
     const auto& previous = frame.workspaces.at(0);
     const auto& selected = frame.workspaces.at(1);
     const auto& next = frame.workspaces.at(2);
@@ -495,11 +494,33 @@ void carouselCentersThePreviewAndShowsReadableSideColumns() {
     assert(!selected.windows.empty());
     assert(selected.windows.front().rect.x >= selected.rect.x);
     assert(selected.windows.front().rect.x + selected.windows.front().rect.width <= selected.rect.x + selected.rect.width);
-    assert(frame.workspaces.at(4).workspaceId == 5);
-    assert(frame.workspaces.at(4).empty);
-    assert(frame.workspaces.back().workspaceId == 6);
+    assert(frame.workspaces.back().workspaceId == 3);
     assert(frame.workspaces.back().createTarget);
     assert(frame.workspaces.back().empty);
+}
+
+void carouselShowsOnlyRealWorkspacesAndOneCreateTarget() {
+    RadiantState state;
+    state.monitors.push_back({.id = 1, .name = "DP-1", .geometry = {.size = {.width = 1920, .height = 1080}}, .activeWorkspaceId = 5, .activeWorkspaceName = "5"});
+    state.workspaces.push_back({.id = 1, .name = "one", .monitorId = 1});
+    state.workspaces.push_back({.id = 5, .name = "five", .monitorId = 1});
+    state.workspaces.push_back({.id = 8, .name = "remote", .monitorId = 2});
+
+    auto options = WorkspaceWallOptions{};
+    options.minimumWorkspaceSlots = 5;
+    options.carousel              = true;
+    options.previewWorkspaceId    = 5;
+    const auto frame = WorkspaceWallLayout{}.compute(
+        state, state.monitors.front(), {.width = 1920, .height = 1080}, options);
+
+    assert(frame.workspaces.size() == 3);
+    assert(frame.workspaces.at(0).workspaceId == 1);
+    assert(frame.workspaces.at(1).workspaceId == 5);
+    assert(frame.workspaces.at(2).workspaceId == 9);
+    assert(frame.workspaces.at(2).createTarget);
+    assert(std::ranges::none_of(frame.workspaces, [](const WorkspaceCard& workspace) {
+        return workspace.workspaceId >= 2 && workspace.workspaceId <= 4;
+    }));
 }
 
 void deckArrangementBuildsAHeroAndSupportingColumn() {
@@ -545,6 +566,7 @@ int main() {
     appExposeFiltersAcrossLocalWorkspaces();
     newWorkspaceTargetAvoidsOtherMonitorIds();
     carouselCentersThePreviewAndShowsReadableSideColumns();
+    carouselShowsOnlyRealWorkspacesAndOneCreateTarget();
     deckArrangementBuildsAHeroAndSupportingColumn();
     std::cout << "WorkspaceWallLayoutTest passed\n";
     return 0;

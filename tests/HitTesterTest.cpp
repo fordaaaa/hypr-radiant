@@ -240,6 +240,31 @@ void horizontalWorkspaceNavigationWrapsAndSkipsCreateTarget() {
     assert(next.workspaceId == 1);
 }
 
+void carouselNavigationUsesLogicalOrderAndIncludesCreateTarget() {
+    WorkspaceWallFrame testFrame{
+        .monitorId = 1,
+        .bounds = {.width = 900, .height = 600},
+        .carousel = true,
+    };
+    // Side-column cards deliberately share x; spatial scoring cannot reliably infer their order.
+    testFrame.workspaces.push_back({.workspaceId = 1, .name = "one", .rect = {.x = 20, .y = 100, .width = 180, .height = 100}, .empty = false});
+    testFrame.workspaces.push_back({.workspaceId = 5, .name = "five", .rect = {.x = 300, .y = 120, .width = 300, .height = 170}, .active = true, .empty = false});
+    testFrame.workspaces.push_back({.workspaceId = 9, .name = "new", .rect = {.x = 700, .y = 100, .width = 180, .height = 100}, .createTarget = true});
+
+    const auto create = HitTester{}.moveSelection(
+        testFrame, {.type = OverviewTargetType::Workspace, .workspaceId = 5}, NavigationDirection::Right);
+    assert(create.type == OverviewTargetType::NewWorkspace);
+    assert(create.workspaceId == 9);
+
+    const auto previous = HitTester{}.moveSelection(testFrame, create, NavigationDirection::Left);
+    assert(previous.type == OverviewTargetType::Workspace);
+    assert(previous.workspaceId == 5);
+
+    const auto wrapped = HitTester{}.moveSelection(testFrame, create, NavigationDirection::Right);
+    assert(wrapped.type == OverviewTargetType::Workspace);
+    assert(wrapped.workspaceId == 1);
+}
+
 void horizontalWorkspaceNavigationSkipsEmptyWorkspaces() {
     // Ctrl+wheel, the horizontal three-finger swipe and the arrow keys all step the rail through
     // this path. Filled gap slots are rendered so the numbering reads correctly, but sweeping
@@ -349,6 +374,7 @@ int main() {
     hiddenStageRailCannotStealTopEdgeHover();
     focusedNavigationEntersStageAndReturnsToRail();
     horizontalWorkspaceNavigationWrapsAndSkipsCreateTarget();
+    carouselNavigationUsesLogicalOrderAndIncludesCreateTarget();
     horizontalWorkspaceNavigationSkipsEmptyWorkspaces();
     horizontalNavigationStillMovesWhenEveryWorkspaceIsEmpty();
     closeButtonHotspotWinsOverTheWindowBeneathIt();

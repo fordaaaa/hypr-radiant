@@ -154,7 +154,7 @@ Press `Ctrl+,` while the overview is open. The native Omarchy-style panel contro
 
 - Stage, Workspace Wall, or the Quattro-inspired Workspace Carousel
 - Spatial, application-grouped, or hero-and-supporting Deck window arrangement
-- Default, Quattro, Reduced, or Off motion
+- Default, Snap, Glitch, Lightcycle, Silk, Reduced, or Off overview animations
 - Theme accent or an explicit green, blue or violet accent
 - App Exposé for the focused application
 
@@ -174,8 +174,8 @@ Workspace Wall shows all workspaces at once as a grid of cards:
 ![The Workspace Wall view](assets/workspaces.webp)
 
 Workspace Carousel borrows Quattro's visual theme/background picker: the selected
-workspace stays centered between readable 16:9 side previews for every empty or
-occupied slot, followed by one explicit new-workspace target.
+workspace stays centered between readable 16:9 side previews for each real
+workspace, followed by one explicit new-workspace target.
 
 Deck arrangement gives the first window a large hero position and packs the rest
 into a supporting column. It is available in Stage alongside Spatial and Grouped.
@@ -278,9 +278,11 @@ themes does not need a reload.
 
 The settings panel starts by following these Hyprland values. Choosing Stage or
 Wall or Carousel saves that view as the preference; `THEME` returns the accent to
-its Hyprland/Omarchy-backed value. The Quattro motion profile uses a fast cubic
-arrival and softer dismissal; Default keeps the existing smooth motion, Reduced
-caps transitions at 90 ms, and Off makes them immediate.
+its Hyprland/Omarchy-backed value. Default preserves the existing smooth motion.
+Snap punches cards forward from depth, Glitch arrives in staggered digital cuts,
+Lightcycle sweeps cards horizontally like a signal, and Silk uses a slower floating
+settle. Reduced caps transitions at 90 ms, while Off makes them immediate. The old
+`quattro`, `cyberpunk`, `tron`, and `elegant` saved values remain compatible.
 
 ## Building it yourself
 

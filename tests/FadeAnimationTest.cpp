@@ -1,5 +1,6 @@
 #include <hypr-radiant/render/FadeAnimation.hpp>
 
+#include <array>
 #include <cassert>
 #include <chrono>
 #include <iostream>
@@ -44,6 +45,27 @@ void quattroCurveArrivesFastAndLeavesSoftly() {
     assert(easedAnimationProgress(AnimationCurve::Quattro, 0.5, true) > 0.80);
     assert(easedAnimationProgress(AnimationCurve::Quattro, 0.5, false) < 0.20);
     assert(easedAnimationProgress(AnimationCurve::Smooth, 0.5, true) == 0.5);
+}
+
+void themedCurvesHaveDistinctCadenceAndStableEndpoints() {
+    constexpr std::array curves{
+        AnimationCurve::Cyberpunk,
+        AnimationCurve::Tron,
+        AnimationCurve::Elegant,
+    };
+    for (const auto curve : curves) {
+        assert(easedAnimationProgress(curve, 0.0, true) == 0.0);
+        assert(easedAnimationProgress(curve, 1.0, true) == 1.0);
+        assert(easedAnimationProgress(curve, 0.4, true) > 0.0);
+        assert(easedAnimationProgress(curve, 0.4, true) < 1.0);
+    }
+
+    const auto cyberpunk = easedAnimationProgress(AnimationCurve::Cyberpunk, 0.4, true);
+    const auto tron = easedAnimationProgress(AnimationCurve::Tron, 0.4, true);
+    const auto elegant = easedAnimationProgress(AnimationCurve::Elegant, 0.4, true);
+    assert(cyberpunk != tron);
+    assert(tron != elegant);
+    assert(cyberpunk != elegant);
 }
 
 void visibleFadeIsMonotonic() {
@@ -99,6 +121,7 @@ int main() {
     zeroDurationVisibilityJumpRendersImmediately();
     positiveDurationVisibilityStartsRunning();
     quattroCurveArrivesFastAndLeavesSoftly();
+    themedCurvesHaveDistinctCadenceAndStableEndpoints();
     visibleFadeIsMonotonic();
     hiddenFadeIsMonotonicAndReachesZero();
     std::cout << "FadeAnimationTest passed\n";

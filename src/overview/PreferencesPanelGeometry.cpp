@@ -61,7 +61,7 @@ PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds) {
         };
     }
 
-    constexpr std::array optionCounts{3, 3, 4, 4};
+    constexpr std::array optionCounts{3, 3, 7, 4};
     std::size_t optionIndex = 0;
     for (std::size_t rowIndex = 0; rowIndex < frame.rows.size(); ++rowIndex) {
         const auto& row = frame.rows[rowIndex];

@@ -30,6 +30,9 @@ enum class AccentPreference {
 enum class MotionPreference {
     FollowConfig,
     Quattro,
+    Cyberpunk,
+    Tron,
+    Elegant,
     Reduced,
     Off,
 };

@@ -726,22 +726,17 @@ WorkspaceWallFrame WorkspaceWallLayout::compute(
         if (monitor.activeWorkspaceId > 0)
             ids.insert(monitor.activeWorkspaceId);
 
-        std::set<std::int64_t> ownedElsewhere;
         std::int64_t globalMaxId = 0;
         for (const auto& workspace : state.workspaces) {
             if (!containsPositiveWorkspaceId(workspace))
                 continue;
             globalMaxId = std::max(globalMaxId, workspace.id);
-            if (workspace.monitorId != monitor.id && workspace.monitorId != -1)
-                ownedElsewhere.insert(workspace.id);
         }
 
-        const auto highestFilledSlot = std::min<std::int64_t>(maxWorkspaceId, maxFilledSlots);
-        for (std::int64_t id = 1; id <= highestFilledSlot; ++id) {
-            if (!ownedElsewhere.contains(id))
-                ids.insert(id);
-        }
-        const auto createTargetId = std::max(globalMaxId, highestFilledSlot) + 1;
+        if (ids.empty())
+            ids.insert(1);
+        const auto highestVisibleId = *ids.rbegin();
+        const auto createTargetId = std::max(globalMaxId, highestVisibleId) + 1;
         ids.insert(createTargetId);
 
         const std::vector<std::int64_t> workspaceIds(ids.begin(), ids.end());

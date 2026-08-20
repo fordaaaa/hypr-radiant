@@ -7,6 +7,9 @@ namespace hypr_radiant {
 enum class AnimationCurve {
     Smooth,
     Quattro,
+    Cyberpunk,
+    Tron,
+    Elegant,
 };
 
 /// Deterministic easing shared by the animation clock and its unit tests.

@@ -52,8 +52,14 @@ void parseLine(PreferencesState& preferences, std::string_view line) {
         else
             preferences.accent = AccentPreference::FollowConfig;
     } else if (key == "motion") {
-        if (value == "quattro")
+        if (value == "snap" || value == "quattro")
             preferences.motion = MotionPreference::Quattro;
+        else if (value == "glitch" || value == "cyberpunk")
+            preferences.motion = MotionPreference::Cyberpunk;
+        else if (value == "lightcycle" || value == "tron")
+            preferences.motion = MotionPreference::Tron;
+        else if (value == "silk" || value == "elegant")
+            preferences.motion = MotionPreference::Elegant;
         else if (value == "reduced")
             preferences.motion = MotionPreference::Reduced;
         else if (value == "off")
@@ -106,7 +112,13 @@ std::string_view value(AccentPreference preference) {
 std::string_view value(MotionPreference preference) {
     switch (preference) {
     case MotionPreference::Quattro:
-        return "quattro";
+        return "snap";
+    case MotionPreference::Cyberpunk:
+        return "glitch";
+    case MotionPreference::Tron:
+        return "lightcycle";
+    case MotionPreference::Elegant:
+        return "silk";
     case MotionPreference::Reduced:
         return "reduced";
     case MotionPreference::Off:
@@ -241,7 +253,13 @@ std::string_view label(AccentPreference preference) {
 std::string_view label(MotionPreference preference) {
     switch (preference) {
     case MotionPreference::Quattro:
-        return "QUATTRO";
+        return "SNAP";
+    case MotionPreference::Cyberpunk:
+        return "GLITCH";
+    case MotionPreference::Tron:
+        return "LIGHTCYCLE";
+    case MotionPreference::Elegant:
+        return "SILK";
     case MotionPreference::Reduced:
         return "REDUCED";
     case MotionPreference::Off:

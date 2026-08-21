@@ -11,7 +11,8 @@ The windows of the current workspace spread out across the screen, and a
 workspace shelf slides in at the top edge when the pointer reaches it, so you can
 move between workspaces without leaving the overview.
 
-![The overview with the workspace shelf open](assets/stage.webp)
+<!-- SCREENSHOT SLOT: assets/gifs/stage.gif -->
+![Stage workspace view](assets/gifs/stage.gif)
 
 ## Requirements
 
@@ -164,25 +165,37 @@ survive plugin and Hyprland restarts. `CURRENT` follows Quattro's active
 `~/.local/state/omarchy/current/theme/colors.toml`; selecting an installed theme
 applies its palette to Radiant only.
 
+<!-- SCREENSHOT SLOT: assets/gifs/settings.gif -->
+![Quattro settings panel](assets/gifs/settings.gif)
+
 ## Views
 
 Stage is the default. It spreads the current workspace across the screen and
-keeps a workspace shelf at the top edge.
+keeps a workspace shelf at the top edge. Its screenshot is the main preview at
+the top of this README.
 
 Workspace Wall shows all workspaces at once as a grid of cards:
 
-![The Workspace Wall view](assets/workspaces.webp)
+<!-- SCREENSHOT SLOT: assets/gifs/workspace-wall.gif -->
+![Workspace Wall view](assets/gifs/workspace-wall.gif)
 
 Workspace Carousel borrows Quattro's visual theme/background picker: the selected
 workspace stays centered between readable 16:9 side previews for each real
 workspace, followed by one explicit new-workspace target.
 
+<!-- SCREENSHOT SLOT: assets/gifs/carousel.gif -->
+![Workspace Carousel view](assets/gifs/carousel.gif)
+
+Workspace Ribbon turns the same workspace sequence into a compact, fast-moving
+strip inspired by Quattro's native pickers.
+
+<!-- SCREENSHOT SLOT: assets/gifs/ribbon.gif -->
+![Workspace Ribbon view](assets/gifs/ribbon.gif)
+
 Deck arrangement gives the first window a large hero position and packs the rest
 into a supporting column. It is available in Stage alongside Spatial and Grouped.
 
-App Exposé collects every window belonging to the focused application:
-
-![App Exposé](assets/app-expose.webp)
+App Exposé collects every window belonging to the focused application.
 
 ## Controls
 

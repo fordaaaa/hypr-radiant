@@ -5,8 +5,15 @@
 #include <hyprland/src/desktop/view/Window.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 
+#ifndef HYPR_RADIANT_HYPRLAND_STATE_API
 #if __has_include(<hyprland/src/state/MonitorState.hpp>)
 #define HYPR_RADIANT_HYPRLAND_STATE_API 1
+#else
+#define HYPR_RADIANT_HYPRLAND_STATE_API 0
+#endif
+#endif
+
+#if HYPR_RADIANT_HYPRLAND_STATE_API
 #include <hyprland/src/desktop/state/GlobalWindowController.hpp>
 #include <hyprland/src/desktop/state/WindowState.hpp>
 #include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
@@ -15,7 +22,6 @@
 #include <hyprland/src/state/MonitorState.hpp>
 #include <hyprland/src/state/WorkspaceState.hpp>
 #else
-#define HYPR_RADIANT_HYPRLAND_STATE_API 0
 #include <hyprland/src/helpers/Monitor.hpp>
 #endif
 

@@ -11,22 +11,22 @@ enum class WorkspaceViewPreference {
     FollowConfig,
     Stage,
     WorkspaceWall,
+    Carousel,
+    Ribbon,
 };
 
 enum class WindowViewPreference {
     Spatial,
     Grouped,
-};
-
-enum class AccentPreference {
-    FollowConfig,
-    Green,
-    Blue,
-    Violet,
+    Deck,
 };
 
 enum class MotionPreference {
     FollowConfig,
+    Quattro,
+    Cyberpunk,
+    Tron,
+    Elegant,
     Reduced,
     Off,
 };
@@ -34,8 +34,10 @@ enum class MotionPreference {
 struct PreferencesState {
     WorkspaceViewPreference workspaceView = WorkspaceViewPreference::FollowConfig;
     WindowViewPreference    windowView    = WindowViewPreference::Spatial;
-    AccentPreference accent = AccentPreference::FollowConfig;
     MotionPreference motion = MotionPreference::FollowConfig;
+    /// Empty follows the desktop's active Omarchy theme. Otherwise this is an installed theme
+    /// slug whose palette is applied to Radiant only.
+    std::string nativeTheme;
 
     bool operator==(const PreferencesState&) const = default;
 };
@@ -62,7 +64,6 @@ class PreferencesStore {
 
 [[nodiscard]] std::string_view label(WorkspaceViewPreference preference);
 [[nodiscard]] std::string_view label(WindowViewPreference preference);
-[[nodiscard]] std::string_view label(AccentPreference preference);
 [[nodiscard]] std::string_view label(MotionPreference preference);
 
 } // namespace hypr_radiant

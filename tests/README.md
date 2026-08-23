@@ -12,9 +12,11 @@ These modules do not directly touch Hyprland globals and are suitable for unit t
 - `FadeAnimation`: advances visibility/alpha state from time deltas.
 - `SwipeTracker`: recognizes overview and workspace gestures and resolves progress, velocity commits, and cancellation.
 - `OpeningInputGuard`: rejects the input events that triggered keyboard or pointer activation.
+- `KeyboardAction`: resolves search text, Ctrl shortcuts, Tab, navigation, and workspace number keys.
 - `AppIdentity`: maps app classes to stable glyphs and inherited Omarchy signal colors.
 - `StageTransform`: preserves preview geometry and pointer alignment across shelf states.
-- Config parsing: converts plugin config strings into typed options.
+- Config parsing and registration: converts plugin config strings into typed options and verifies every
+  Hyprland-facing plugin key is registered, including `gesture_distance`.
 
 ## Non-testable without mocking
 

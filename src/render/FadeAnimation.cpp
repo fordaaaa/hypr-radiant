@@ -5,6 +5,37 @@
 
 namespace hypr_radiant {
 
+double easedAnimationProgress(AnimationCurve curve, double linear, bool opening) noexcept {
+    const auto progress = std::clamp(linear, 0.0, 1.0);
+    switch (curve) {
+    case AnimationCurve::Quattro: {
+        // Quattro's image carousel snaps confidently into its final pose but leaves gently: an
+        // asymmetric cubic makes opening feel immediate without making dismissal look abrupt.
+        const auto inverse = 1.0 - progress;
+        return opening ? 1.0 - inverse * inverse * inverse : progress * progress * progress;
+    }
+    case AnimationCurve::Cyberpunk: {
+        // A controlled digital cut: visible steps give the overview a glitch cadence while the
+        // continuous component keeps pointer-driven and interrupted transitions responsive.
+        constexpr auto steps = 7.0;
+        const auto quantized = progress >= 1.0 ? 1.0 : static_cast<double>(static_cast<int>(progress * steps)) / steps;
+        return quantized * 0.72 + progress * 0.28;
+    }
+    case AnimationCurve::Tron: {
+        // A precise light sweep: fast ignition on arrival, then a measured power-down on exit.
+        const auto inverse = 1.0 - progress;
+        return opening ? 1.0 - inverse * inverse : progress * progress;
+    }
+    case AnimationCurve::Elegant:
+        // Quintic smoothstep has zero velocity and acceleration at both ends, producing the
+        // restrained, polished motion expected from the quietest profile.
+        return progress * progress * progress * (progress * (progress * 6.0 - 15.0) + 10.0);
+    case AnimationCurve::Smooth:
+        return progress * progress * (3.0 - 2.0 * progress);
+    }
+    return progress;
+}
+
 void FadeAnimation::animateTo(bool visible, int durationMs) {
     const auto now = Clock::now();
     update(now);
@@ -36,6 +67,10 @@ void FadeAnimation::setProgress(double value, bool targetVisible) {
     m_targetVisible = targetVisible;
     m_running = false;
     m_duration = std::chrono::milliseconds{0};
+}
+
+void FadeAnimation::setCurve(AnimationCurve curve) noexcept {
+    m_curve = curve;
 }
 
 double FadeAnimation::value() {
@@ -71,7 +106,7 @@ void FadeAnimation::update(Clock::time_point now) {
     }
 
     const auto linear = std::clamp(elapsed / total, 0.0, 1.0);
-    const auto eased  = linear * linear * (3.0 - 2.0 * linear);
+    const auto eased  = easedAnimationProgress(m_curve, linear, m_targetValue >= m_startValue);
 
     m_currentValue = std::lerp(m_startValue, m_targetValue, eased);
 }

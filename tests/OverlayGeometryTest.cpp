@@ -184,6 +184,24 @@ void dragLandingCentresInsideTheWorkspaceCard() {
     assert(near(safe.width, card.width) && near(safe.x, card.x));
 }
 
+void signalSweepTravelsInsideTheCard() {
+    const LayoutRect card{.x = 100.0, .y = 200.0, .width = 400.0, .height = 240.0};
+    const auto       start = signalSweepRect(card, 0.0);
+    const auto       mid   = signalSweepRect(card, 0.5);
+    const auto       end   = signalSweepRect(card, 1.0);
+
+    assert(start.x > card.x && start.x + start.width < card.x + card.width);
+    assert(start.y > card.y);
+    assert(mid.y > start.y && mid.y < end.y);
+    assert(end.y + end.height < card.y + card.height);
+
+    const auto before = signalSweepRect(card, -4.0);
+    const auto after  = signalSweepRect(card, 8.0);
+    assert(near(before.y, start.y));
+    assert(near(after.y, end.y));
+    assert(signalSweepRect({}, 0.5).width == 0.0);
+}
+
 } // namespace
 
 int main() {
@@ -198,6 +216,7 @@ int main() {
     displayedPointRoundTripsToSourceStage();
     dragCardLiftsFromItsSlotToThePointer();
     dragLandingCentresInsideTheWorkspaceCard();
+    signalSweepTravelsInsideTheCard();
     std::cout << "OverlayGeometryTest passed\n";
     return 0;
 }

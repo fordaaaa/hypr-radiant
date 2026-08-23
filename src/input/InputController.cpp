@@ -1,4 +1,5 @@
 #include <hypr-radiant/input/InputController.hpp>
+#include <hypr-radiant/input/KeyboardAction.hpp>
 
 #include <hyprland/src/devices/IKeyboard.hpp>
 #include <hyprland/src/event/EventBus.hpp>
@@ -115,8 +116,19 @@ std::optional<char> searchCharForKey(uint32_t key) {
         return 'z';
     case KEY_SPACE:
         return ' ';
-        default: return std::nullopt;
+    case KEY_SLASH:
+        return '/';
+    default:
+        break;
     }
+
+    // number row is continous so it can be calculated instead of hardcoded
+    if (key >= KEY_1 && key <= KEY_9)
+        return static_cast<char>('1' + (key - KEY_1));
+    if (key == KEY_0)
+        return '0';
+
+    return std::nullopt;
 }
 
 } // namespace
@@ -233,81 +245,53 @@ void InputController::install(Callbacks callbacks) {
         if (!isPressed)
             return;
 
-        const auto key = event.keycode;
-        if (key == KEY_ESC) {
+        const auto key        = event.keycode;
+        const auto searching  = m_searchActive && m_searchActive();
+        const auto action     = resolveKeyboardAction(key, searching, ctrlHeld(), searchCharForKey(key));
+
+        switch (action.type) {
+        case KeyboardActionType::Close:
             if (m_close)
                 m_close();
             return;
-        }
-
-        if (key == KEY_ENTER || key == KEY_KPENTER) {
+        case KeyboardActionType::Activate:
             if (!activationArmed())
                 return;
             if (m_activate)
                 m_activate({});
             return;
-        }
-
-        if (key == KEY_BACKSPACE) {
+        case KeyboardActionType::Backspace:
             if (m_backspace)
                 m_backspace();
-            if (m_searchActive && m_searchActive())
+            if (searching)
                 startBackspaceRepeat();
             return;
-        }
-
-        if (key == KEY_SLASH) {
+        case KeyboardActionType::OpenSearch:
             if (m_openSearch)
                 m_openSearch();
             return;
-        }
-
-        if (key == KEY_COMMA && ctrlHeld()) {
+        case KeyboardActionType::TogglePreferences:
             if (m_togglePreferences)
                 m_togglePreferences();
             return;
-        }
-
-        if (key == KEY_TAB) {
-            if (!m_searchActive || !m_searchActive()) {
-                if (m_toggleMode)
-                    m_toggleMode();
-            }
+        case KeyboardActionType::ToggleMode:
+            if (m_toggleMode)
+                m_toggleMode();
             return;
-        }
-
-        if (key >= KEY_1 && key <= KEY_9) {
-            const auto value = static_cast<char>('1' + (key - KEY_1));
-            if (m_searchActive && m_searchActive()) {
-                if (m_textInput)
-                    m_textInput(value);
-            } else if (m_jump) {
-                m_jump(static_cast<std::int64_t>(value - '0'));
-            }
+        case KeyboardActionType::JumpWorkspace:
+            if (m_jump)
+                m_jump(action.workspaceId);
             return;
-        }
-
-        if (key == KEY_0) {
-            if (m_searchActive && m_searchActive() && m_textInput)
-                m_textInput('0');
+        case KeyboardActionType::Move:
+            if (m_move)
+                m_move(action.direction);
             return;
-        }
-
-        if (key == KEY_LEFT) {
-            if (m_move)
-                m_move(NavigationDirection::Left);
-        } else if (key == KEY_RIGHT) {
-            if (m_move)
-                m_move(NavigationDirection::Right);
-        } else if (key == KEY_UP) {
-            if (m_move)
-                m_move(NavigationDirection::Up);
-        } else if (key == KEY_DOWN) {
-            if (m_move)
-                m_move(NavigationDirection::Down);
-        } else if (const auto searchChar = searchCharForKey(key)) {
+        case KeyboardActionType::TextInput:
             if (m_textInput)
-                m_textInput(*searchChar);
+                m_textInput(action.text);
+            return;
+        case KeyboardActionType::None:
+            return;
         }
     });
 

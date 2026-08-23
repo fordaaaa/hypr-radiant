@@ -2,7 +2,7 @@
 
 #include <hypr-radiant/overview/WorkspaceWallLayout.hpp>
 
-#include <array>
+#include <vector>
 
 namespace hypr_radiant {
 
@@ -10,7 +10,8 @@ enum class PreferenceControl {
     None,
     WorkspaceView,
     WindowView,
-    Accent,
+    Motion,
+    NativeTheme,
     AppExpose,
     Close,
 };
@@ -34,14 +35,18 @@ struct PreferenceHit {
 };
 
 struct PreferencesPanelFrame {
-    LayoutRect                   panel;
-    LayoutRect                   closeButton;
-    std::array<PreferenceRow, 3> rows;
-    std::array<PreferenceOption, 8> options;
-    LayoutRect                   appExposeButton;
+    LayoutRect                    panel;
+    LayoutRect                    closeButton;
+    std::vector<PreferenceRow>    rows;
+    std::vector<PreferenceOption> options;
+    LayoutRect                    settingsPane;
+    LayoutRect                    nativeThemesPane;
+    LayoutRect                    appExposeButton;
 };
 
-[[nodiscard]] PreferencesPanelFrame computePreferencesPanel(const LayoutRect& monitorBounds);
+[[nodiscard]] PreferencesPanelFrame computePreferencesPanel(
+    const LayoutRect& monitorBounds, bool includeWindowArrangement = true, int nativeThemeOptionCount = 0);
+[[nodiscard]] bool                  containsPreferencesPanel(const PreferencesPanelFrame& frame, double x, double y);
 [[nodiscard]] PreferenceHit         hitTestPreferencesPanel(const PreferencesPanelFrame& frame, double x, double y);
 
 } // namespace hypr_radiant

@@ -10,6 +10,7 @@
 
 #include <string_view>
 #include <optional>
+#include <string>
 
 namespace hypr_radiant {
 
@@ -21,6 +22,8 @@ inline constexpr bool DEFAULT_SHORTCUT_ENABLED = true;
 enum class LayoutMode {
     Stage,
     WorkspaceWall,
+    Carousel,
+    Ribbon,
 };
 
 [[nodiscard]] LayoutMode parseLayoutMode(std::string_view value);
@@ -28,16 +31,16 @@ enum class LayoutMode {
 class RadiantConfig {
   public:
     bool registerValues(HANDLE handle);
+    [[nodiscard]] const std::string& registrationError() const noexcept;
 
-    /// Re-reads the active Omarchy theme palette. Called when the overview opens so a theme
-    /// switch is picked up without reloading the plugin.
-    void refreshPalette();
+    /// Re-reads the desktop's active Omarchy palette, or an installed named theme for Radiant
+    /// only. Called when the overview opens so installed and active theme changes need no reload.
+    void refreshPalette(std::string_view themeSlug = {});
     [[nodiscard]] const OmarchyPalette& palette() const;
 
     [[nodiscard]] float           opacity() const;
     [[nodiscard]] int             animationDurationMs() const;
     [[nodiscard]] LayoutMode layoutMode() const;
-    [[nodiscard]] std::optional<CHyprColor> accentColorOverride() const;
     [[nodiscard]] CHyprColor       backgroundColor() const;
     [[nodiscard]] CHyprColor       foregroundColor() const;
     [[nodiscard]] std::string      fontFamily() const;
@@ -50,7 +53,6 @@ class RadiantConfig {
     SP<Config::Values::CFloatValue>  m_opacity;
     SP<Config::Values::CIntValue>    m_animationDurationMs;
     SP<Config::Values::CStringValue> m_layout;
-    SP<Config::Values::CStringValue> m_accentColor;
     SP<Config::Values::CStringValue> m_backgroundColor;
     SP<Config::Values::CStringValue> m_foregroundColor;
     SP<Config::Values::CStringValue> m_fontFamily;
@@ -59,6 +61,7 @@ class RadiantConfig {
     SP<Config::Values::CFloatValue>  m_gestureDistance;
     SP<Config::Values::CIntValue>    m_shortcutEnabled;
     OmarchyPalette                   m_palette;
+    std::string                      m_registrationError;
 };
 
 } // namespace hypr_radiant

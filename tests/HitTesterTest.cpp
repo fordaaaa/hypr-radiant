@@ -182,6 +182,29 @@ void focusedStageWindowsAreInteractive() {
     assert(target.windowId == 11);
 }
 
+void hiddenStageRailCannotStealTopEdgeHover() {
+    auto testFrame = focusedFrame();
+    testFrame.workspaces.at(1).createTarget = true;
+
+    // This x coordinate belongs to the create-workspace card in its final layout. While the shelf
+    // is hidden, however, both the rail and that card are fully above the monitor.
+    const auto hidden = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 0.0, 0.0);
+    assert(hidden.type == OverviewTargetType::None);
+
+    // Mid-reveal the final-layout position is still empty, while the visible part of the card has
+    // moved to the top edge. Input follows that translated rectangle rather than jumping ahead.
+    const auto premature = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 60.0, 0.5);
+    assert(premature.type == OverviewTargetType::None);
+    const auto arriving = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 20.0, 0.5);
+    assert(arriving.type == OverviewTargetType::NewWorkspace);
+
+    // Once the shelf reaches its layout position, the identical card is interactive where it is
+    // actually drawn. This is the transition the old static hit test skipped.
+    const auto visible = HitTester{}.hitTestDisplayedStage(testFrame, 300.0, 60.0, 1.0);
+    assert(visible.type == OverviewTargetType::NewWorkspace);
+    assert(visible.workspaceId == 2);
+}
+
 void focusedNavigationEntersStageAndReturnsToRail() {
     const auto testFrame = focusedFrame();
     const auto first = HitTester{}.moveSelection(testFrame, {.type = OverviewTargetType::Workspace, .workspaceId = 1}, NavigationDirection::Down);
@@ -215,6 +238,47 @@ void horizontalWorkspaceNavigationWrapsAndSkipsCreateTarget() {
         testFrame, {.type = OverviewTargetType::Workspace, .workspaceId = 2}, NavigationDirection::Right);
     assert(next.type == OverviewTargetType::Workspace);
     assert(next.workspaceId == 1);
+}
+
+void carouselNavigationUsesLogicalOrderAndIncludesCreateTarget() {
+    WorkspaceWallFrame testFrame{
+        .monitorId = 1,
+        .bounds = {.width = 900, .height = 600},
+        .carousel = true,
+    };
+    // Side-column cards deliberately share x; spatial scoring cannot reliably infer their order.
+    testFrame.workspaces.push_back({.workspaceId = 1, .name = "one", .rect = {.x = 20, .y = 100, .width = 180, .height = 100}, .empty = false});
+    testFrame.workspaces.push_back({.workspaceId = 5, .name = "five", .rect = {.x = 300, .y = 120, .width = 300, .height = 170}, .active = true, .empty = false});
+    testFrame.workspaces.push_back({.workspaceId = 9, .name = "new", .rect = {.x = 700, .y = 100, .width = 180, .height = 100}, .createTarget = true});
+
+    const auto create = HitTester{}.moveSelection(
+        testFrame, {.type = OverviewTargetType::Workspace, .workspaceId = 5}, NavigationDirection::Right);
+    assert(create.type == OverviewTargetType::NewWorkspace);
+    assert(create.workspaceId == 9);
+
+    const auto previous = HitTester{}.moveSelection(testFrame, create, NavigationDirection::Left);
+    assert(previous.type == OverviewTargetType::Workspace);
+    assert(previous.workspaceId == 5);
+
+    const auto wrapped = HitTester{}.moveSelection(testFrame, create, NavigationDirection::Right);
+    assert(wrapped.type == OverviewTargetType::Workspace);
+    assert(wrapped.workspaceId == 1);
+}
+
+void ribbonBladesPromoteWorkspacesInsteadOfTheirWindows() {
+    auto testFrame = frame();
+    testFrame.carousel           = true;
+    testFrame.ribbon             = true;
+    testFrame.previewWorkspaceId = 2;
+
+    const auto blade = HitTester{}.hitTest(testFrame, 40, 40);
+    assert(blade.type == OverviewTargetType::Workspace);
+    assert(blade.workspaceId == 1);
+
+    testFrame.previewWorkspaceId = 1;
+    const auto heroWindow = HitTester{}.hitTest(testFrame, 40, 40);
+    assert(heroWindow.type == OverviewTargetType::Window);
+    assert(heroWindow.windowId == 11);
 }
 
 void horizontalWorkspaceNavigationSkipsEmptyWorkspaces() {
@@ -323,8 +387,11 @@ int main() {
     focusedRailTreatsMiniaturesAsWorkspaceTargets();
     createCardHasDedicatedTarget();
     focusedStageWindowsAreInteractive();
+    hiddenStageRailCannotStealTopEdgeHover();
     focusedNavigationEntersStageAndReturnsToRail();
     horizontalWorkspaceNavigationWrapsAndSkipsCreateTarget();
+    carouselNavigationUsesLogicalOrderAndIncludesCreateTarget();
+    ribbonBladesPromoteWorkspacesInsteadOfTheirWindows();
     horizontalWorkspaceNavigationSkipsEmptyWorkspaces();
     horizontalNavigationStillMovesWhenEveryWorkspaceIsEmpty();
     closeButtonHotspotWinsOverTheWindowBeneathIt();

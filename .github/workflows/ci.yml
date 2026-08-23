@@ -10,7 +10,8 @@ permissions:
 jobs:
   logic:
     name: Pure logic validation
-    runs-on: ubuntu-24.04
+    # Ubuntu 26.04 includes LLVM 22, CMake, GCC, and pkg-config on the runner image.
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     env:
       ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
@@ -40,22 +41,16 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Install validation tools
+      - name: Validate HyprPM plugin commit pins
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            ca-certificates \
-            cmake \
-            g++ \
-            pkg-config \
-            wget
-          wget --quiet https://apt.llvm.org/llvm.sh --output-document=/tmp/llvm.sh
-          chmod +x /tmp/llvm.sh
-          sudo /tmp/llvm.sh 22
-          sudo apt-get install -y --no-install-recommends \
-            clang-format-22 \
-            clang-tidy-22
+          pins="$(sed -nE 's/^[[:space:]]*\["[0-9a-f]{40}",[[:space:]]*"([0-9a-f]{40})"\].*/\1/p' hyprpm.toml)"
+          test -n "$pins"
+          for pin in $pins; do
+            git cat-file -e "${pin}^{commit}"
+          done
 
       - name: Report validation toolchain
         run: |
@@ -95,13 +90,16 @@ jobs:
             version=""
           fi
 
-          if [ "$version" = "0.55.2" ]; then
-            echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "Hyprland $version headers are available; running full plugin build."
-          else
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=Full plugin build skipped::Hyprland 0.55.2 headers/pkg-config are not available on ubuntu-24.04. Full plugin builds are validated locally against matching Hyprland headers."
-          fi
+          case "$version" in
+            0.55.2|0.55.4|0.56.2)
+              echo "available=true" >> "$GITHUB_OUTPUT"
+              echo "Hyprland $version headers are available; running full plugin build."
+              ;;
+            *)
+              echo "available=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=Full plugin build skipped::Supported Hyprland headers/pkg-config are not available on ubuntu-26.04. Full plugin builds are validated against matching Hyprland headers."
+              ;;
+          esac
 
       - name: Build full plugin when matching headers exist
         if: steps.hyprland-headers.outputs.available == 'true'

@@ -29,6 +29,7 @@ struct WindowCard {
 enum class OverviewMode {
     Spatial,
     Grouped,
+    Deck,
     AppExpose,
 };
 
@@ -63,6 +64,9 @@ struct WorkspaceWallFrame {
     WorkspaceRail  rail;
     WorkspaceStage stage;
     bool                       focusedStage = false;
+    bool                       carousel     = false;
+    bool                       ribbon       = false;
+    std::int64_t               previewWorkspaceId = -1;
 };
 
 struct WorkspaceWallOptions {
@@ -72,6 +76,8 @@ struct WorkspaceWallOptions {
     double windowGap             = 10.0;
     double windowInset           = 22.0;
     bool   focusedStage          = false;
+    bool   carousel              = false;
+    bool   ribbon                = false;
     std::int64_t previewWorkspaceId = -1;
     OverviewMode mode = OverviewMode::Spatial;
     std::string  applicationFilter;

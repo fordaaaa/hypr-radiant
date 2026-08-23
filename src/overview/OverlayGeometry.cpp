@@ -92,6 +92,27 @@ LayoutRect dragLandingRect(const LayoutRect& card, const LayoutRect& workspace) 
     };
 }
 
+LayoutRect signalSweepRect(const LayoutRect& card, double progress) {
+    if (card.width <= 0.0 || card.height <= 0.0)
+        return {};
+
+    const auto inset     = std::min({12.0, card.width * 0.08, card.height * 0.08});
+    const auto thickness = std::clamp(card.height * 0.018, 1.0, 3.0);
+    const auto travel    = std::max(0.0, card.height - inset * 2.0 - thickness);
+    return {
+        .x      = card.x + inset,
+        .y      = card.y + inset + travel * std::clamp(progress, 0.0, 1.0),
+        .width  = std::max(0.0, card.width - inset * 2.0),
+        .height = thickness,
+    };
+}
+
+double stageRailEntranceOffset(const WorkspaceWallFrame& frame, double shelfProgress) {
+    constexpr auto clearance = 14.0;
+    return -(1.0 - std::clamp(shelfProgress, 0.0, 1.0)) *
+        (frame.rail.bounds.y + frame.rail.bounds.height + clearance);
+}
+
 LayoutRect collapsedStageBounds(const WorkspaceWallFrame& frame) {
     const auto bottom     = frame.stage.bounds.y + frame.stage.bounds.height;
     const auto collapsedY = std::min(bottom, frame.rail.bounds.y + 70.0);

@@ -19,6 +19,10 @@ namespace hypr_radiant {
 class HitTester {
   public:
     [[nodiscard]] OverviewTarget hitTest(const WorkspaceWallFrame& frame, double x, double y) const;
+    /// Hit-tests the Stage view at its rendered shelf progress. Unlike hitTest(), this accounts for
+    /// the rail sliding in and the stage expanding underneath it.
+    [[nodiscard]] OverviewTarget hitTestDisplayedStage(
+        const WorkspaceWallFrame& frame, double x, double y, double shelfProgress) const;
     [[nodiscard]] OverviewTarget initialSelection(const WorkspaceWallFrame& frame) const;
     [[nodiscard]] OverviewTarget moveSelection(const WorkspaceWallFrame& frame, OverviewTarget current, NavigationDirection direction) const;
 };

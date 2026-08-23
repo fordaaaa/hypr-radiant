@@ -1,5 +1,8 @@
 #include <hypr-radiant/overview/HitTester.hpp>
 
+#include <hypr-radiant/overview/OverlayGeometry.hpp>
+#include <hypr-radiant/overview/StageTransform.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -9,10 +12,6 @@ namespace {
 
 bool selectable(const LayoutRect& rect) {
     return rect.width > 0.0 && rect.height > 0.0;
-}
-
-bool contains(const LayoutRect& rect, double x, double y) {
-    return selectable(rect) && x >= rect.x && y >= rect.y && x < rect.x + rect.width && y < rect.y + rect.height;
 }
 
 LayoutRect rectFor(const WorkspaceWallFrame& frame, OverviewTarget target) {
@@ -113,6 +112,10 @@ OverviewTarget HitTester::hitTest(const WorkspaceWallFrame& frame, double x, dou
     }
 
     for (const auto& workspace : frame.workspaces) {
+        // Ribbon blades behave like Omarchy theme-picker slices: clicking one promotes the whole
+        // workspace into the center. Only the expanded workspace exposes individual windows.
+        if (frame.ribbon && workspace.workspaceId != frame.previewWorkspaceId)
+            continue;
         for (const auto& window : workspace.windows) {
             if (contains(window.rect, x, y))
                 return {.type = OverviewTargetType::Window, .workspaceId = window.workspaceId, .windowId = window.stableId, .monitorId = frame.monitorId};
@@ -131,6 +134,35 @@ OverviewTarget HitTester::hitTest(const WorkspaceWallFrame& frame, double x, dou
     return {};
 }
 
+OverviewTarget HitTester::hitTestDisplayedStage(
+    const WorkspaceWallFrame& frame, double x, double y, double shelfProgress) const {
+    if (!frame.focusedStage)
+        return hitTest(frame, x, y);
+
+    const auto progress   = std::clamp(shelfProgress, 0.0, 1.0);
+    const auto railOffset = stageRailEntranceOffset(frame, progress);
+    auto       railBounds = frame.rail.bounds;
+    railBounds.y += railOffset;
+    if (contains(railBounds, x, y))
+        return hitTest(frame, x, y - railOffset);
+
+    const auto displayedStage = interpolatedRect(collapsedStageBounds(frame), frame.stage.bounds, progress);
+    if (!contains(displayedStage, x, y))
+        return {};
+
+    if (const auto mapped = mapStagePointToSource(frame.stage.bounds, displayedStage, {.x = x, .y = y}))
+        return hitTest(frame, mapped->x, mapped->y);
+
+    // Aspect-preserving stage mapping can leave narrow letterbox margins. They are still visible
+    // workspace background, so hovering them selects the current workspace rather than a hidden
+    // rail card whose static layout happens to sit under the same coordinate.
+    return {
+        .type        = OverviewTargetType::Workspace,
+        .workspaceId = frame.stage.workspaceId,
+        .monitorId   = frame.monitorId,
+    };
+}
+
 OverviewTarget HitTester::initialSelection(const WorkspaceWallFrame& frame) const {
     for (const auto& workspace : frame.workspaces) {
         if (workspace.active && selectable(workspace.rect))
@@ -145,8 +177,37 @@ OverviewTarget HitTester::initialSelection(const WorkspaceWallFrame& frame) cons
 }
 
 OverviewTarget HitTester::moveSelection(const WorkspaceWallFrame& frame, OverviewTarget current, NavigationDirection direction) const {
-    auto targets = workspaceTargets(frame);
     const auto horizontal = direction == NavigationDirection::Left || direction == NavigationDirection::Right;
+
+    // Carousel cards are a logical sequence displayed as a centered hero with stacked side
+    // columns. Resolve horizontal motion directly from that sequence: this avoids both ambiguous
+    // geometry scoring and allocating a temporary target vector for every arrow or swipe.
+    if (frame.carousel && horizontal) {
+        const auto currentCard = std::ranges::find_if(frame.workspaces, [current](const WorkspaceCard& card) {
+            return card.workspaceId == current.workspaceId;
+        });
+        if (currentCard == frame.workspaces.end())
+            return initialSelection(frame);
+
+        auto index = static_cast<std::size_t>(std::distance(frame.workspaces.begin(), currentCard));
+        for (std::size_t attempts = 0; attempts < frame.workspaces.size(); ++attempts) {
+            if (direction == NavigationDirection::Left)
+                index = index == 0 ? frame.workspaces.size() - 1 : index - 1;
+            else
+                index = (index + 1) % frame.workspaces.size();
+
+            const auto& card = frame.workspaces[index];
+            if (selectable(card.rect))
+                return {
+                    .type = card.createTarget ? OverviewTargetType::NewWorkspace : OverviewTargetType::Workspace,
+                    .workspaceId = card.workspaceId,
+                    .monitorId = frame.monitorId,
+                };
+        }
+        return current;
+    }
+
+    auto targets = workspaceTargets(frame);
     if (horizontal) {
         std::erase_if(targets, [](OverviewTarget target) { return target.type == OverviewTargetType::NewWorkspace; });
         // Stepping the rail should land on workspaces that actually hold something. Empty slots are
